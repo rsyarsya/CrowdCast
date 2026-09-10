@@ -6,12 +6,11 @@
 Fakultas Teknik  
 Universitas Gadjah Mada
 
-## Anggota Kelompok
+## Anggota Kelompok 03 Labdas 1
 
-- Nama 1 — NIM
-- Nama 2 — NIM
-- Nama 3 — NIM
-- Nama 4 — NIM
+- Rasyadwa Arsya Irnantyanto — 24/534174/TK/59283
+- Ghaisan Rifqi Kamiel — 24/540091/TK/59899
+- Raditya Azhar Ananta — 24/539913/TK/59881
 
 ---
 
