@@ -127,60 +127,25 @@ Satu Camera dapat memiliki banyak CrowdRecord dan Prediction. Setiap record moni
 
 ## Low-Fidelity Wireframe
 
-Wireframe teks berikut memusatkan perhatian pada susunan informasi dan fungsi utama layar.
-
-<!-- Gambar low-fidelity wireframe dapat ditambahkan setelah aset tersedia di repository. -->
+Wireframe berikut memusatkan perhatian pada susunan informasi dan fungsi utama layar.
 
 ### 1. Login
 
 Layar login menyediakan isian email, password, dan tombol masuk untuk pengguna yang memiliki hak akses.
 
-```text
-+-------------------------------------------+
-| CrowdCast                                 |
-| Login                                     |
-| Email    [                              ] |
-| Password [                              ] |
-|                  [Masuk]                  |
-+-------------------------------------------+
-```
+![Low-fidelity wireframe Login](images/login-lofi.png)
 
 ### 2. Dashboard / Live Monitoring
 
 Dashboard menampilkan identitas/lokasi camera, video, jumlah orang, status kepadatan, serta prediksi. Menu pengelolaan camera ditujukan untuk Administrator.
 
-```text
-+------------------------------------------------+
-| CrowdCast                             Pengguna |
-| Dashboard | Cameras | History                  |
-+------------------------------------------------+
-| Camera / lokasi yang dipantau                   |
-|                                                |
-|                  VIDEO / CCTV                  |
-|                                                |
-+------------------------+-----------------------+
-| People Count           | Crowd Status          |
-| Jumlah terdeteksi       | Sepi / Normal / Ramai |
-+------------------------+-----------------------+
-| Prediction: perkiraan jumlah / status crowd    |
-+------------------------------------------------+
-```
+![Low-fidelity wireframe Live Monitoring](images/liveMonitoring-lofi.png)
 
 ### 3. Monitoring History
 
 Layar riwayat menampilkan perubahan kepadatan berdasarkan camera dan periode waktu, melalui grafik sederhana serta tabel monitoring.
 
-```text
-+------------------------------------------------+
-| CrowdCast — Monitoring History                  |
-| Camera [pilih]       Periode [pilih]            |
-+------------------------------------------------+
-| Grafik perubahan jumlah orang terhadap waktu   |
-+------------------------------------------------+
-| Waktu | Camera | People Count | Crowd Status   |
-|             Data riwayat monitoring            |
-+------------------------------------------------+
-```
+![Low-fidelity wireframe Monitoring History](images/monitoringHist-lofi.png)
 
 ## Gantt Chart
 
