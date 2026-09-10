@@ -1,0 +1,39 @@
+name: CrowdCast CI
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+    branches:
+      - main
+      - dev
+
+jobs:
+  repository-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check repository structure
+        run: |
+          echo "Checking CrowdCast repository..."
+          test -f README.md
+          test -f docs/index.md
+          echo "Repository structure check passed."
+
+      - name: Check unresolved merge conflicts
+        run: |
+          if grep -R -n \
+            --exclude-dir=.git \
+            -e '^<<<<<<< ' \
+            -e '^=======$' \
+            -e '^>>>>>>> ' .; then
+            echo "Unresolved merge conflict found."
+            exit 1
+          else
+            echo "No unresolved merge conflicts found."
+          fi
