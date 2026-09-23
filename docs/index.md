@@ -147,6 +147,18 @@ Layar riwayat menampilkan perubahan kepadatan berdasarkan camera dan periode wak
 
 ![Low-fidelity wireframe Monitoring History](images/monitoringHist-lofi.png)
 
+## Progress Pengembangan
+
+Dokumentasi berikut mencatat hasil iterasi tim dan membedakan rancangan, keputusan yang masih diusulkan, serta implementasi yang telah diverifikasi.
+
+### Week 3 — UI Design Baseline
+
+- [Progress Week 3](progress/week-03.html)
+- [Draft Color Palette](design/color-palette.html)
+- [Draft Visual Direction](design/visual-direction.html)
+
+Palet dan arah visual Week 3 masih berstatus **PROPOSED**. Keduanya belum menyatakan design system atau implementasi frontend final.
+
 ## Gantt Chart
 
 Jadwal berikut merupakan baseline 12 pertemuan yang dapat disesuaikan dengan hasil evaluasi setiap iterasi. Simbol **●** menandai pertemuan aktif untuk kegiatan tersebut, bukan kegiatan yang sudah selesai.
