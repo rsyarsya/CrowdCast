@@ -159,6 +159,14 @@ Dokumentasi berikut mencatat hasil iterasi tim dan membedakan rancangan, keputus
 
 Palet dan arah visual Week 3 masih berstatus **PROPOSED**. Keduanya belum menyatakan design system atau implementasi frontend final.
 
+### Week 4 — Struktur Data Monitoring dan Alur Pemrosesan Video
+
+- [Progress Week 4](progress/week-04.html)
+- [Rancangan Struktur Data Monitoring](design/monitoring-data.html)
+- [JSON Simulasi Monitoring](data/monitoring-simulation.json)
+
+Tabel atribut, JSON simulasi, serta diagram alur pemrosesan video dari laporan kelompok tersedia pada dokumentasi Week 4. Rancangan struktur data berstatus **PROPOSED**; issue perancangan alur video tercatat selesai dalam laporan sumber. Dokumentasi ini belum menyatakan implementasi pipeline atau integrasi selesai.
+
 ## Gantt Chart
 
 Jadwal berikut merupakan baseline 12 pertemuan yang dapat disesuaikan dengan hasil evaluasi setiap iterasi. Simbol **●** menandai pertemuan aktif untuk kegiatan tersebut, bukan kegiatan yang sudah selesai.
