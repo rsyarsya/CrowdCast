@@ -167,6 +167,12 @@ Palet dan arah visual Week 3 masih berstatus **PROPOSED**. Keduanya belum menyat
 
 Tabel atribut, JSON simulasi, serta diagram alur pemrosesan video dari laporan kelompok tersedia pada dokumentasi Week 4. Rancangan struktur data berstatus **PROPOSED**; issue perancangan alur video tercatat selesai dalam laporan sumber. Dokumentasi ini belum menyatakan implementasi pipeline atau integrasi selesai.
 
+### Week 5 — Stack dan Kerangka Backend
+
+- [Progress Week 5](progress/week-05.html)
+
+Dokumentasi Week 5 memuat penetapan arsitektur teknologi (FastAPI, Next.js, PostgreSQL/SQLAlchemy, JWT Bearer), struktur folder backend modular, serta kerangka aplikasi awal dengan verifikasi endpoint `/health`. Integrasi database, autentikasi, pipeline video/AI, dan deployment cloud belum dinyatakan selesai.
+
 ## Gantt Chart
 
 Jadwal berikut merupakan baseline 12 pertemuan yang dapat disesuaikan dengan hasil evaluasi setiap iterasi. Simbol **●** menandai pertemuan aktif untuk kegiatan tersebut, bukan kegiatan yang sudah selesai.
