@@ -173,6 +173,12 @@ Tabel atribut, JSON simulasi, serta diagram alur pemrosesan video dari laporan k
 
 Dokumentasi Week 5 memuat penetapan arsitektur teknologi (FastAPI, Next.js, PostgreSQL/SQLAlchemy, JWT Bearer), struktur folder backend modular, serta kerangka aplikasi awal dengan verifikasi endpoint `/health`. Integrasi database, autentikasi, pipeline video/AI, dan deployment cloud belum dinyatakan selesai.
 
+### Week 6 — Verifikasi Backend dan Frontend melalui CI
+
+- [Progress Week 6](progress/week-06.html)
+
+Dokumentasi Week 6 mencatat scaffold frontend, perbaikan pengujian Vitest, dan CI backend/frontend beserta hasil verifikasi. Status PR dan batas pengujian dicatat pada laporan; integrasi monitoring, AI, database, dan cloud masih memerlukan pekerjaan lanjutan.
+
 ## Gantt Chart
 
 Jadwal berikut merupakan baseline 12 pertemuan yang dapat disesuaikan dengan hasil evaluasi setiap iterasi. Simbol **●** menandai pertemuan aktif untuk kegiatan tersebut, bukan kegiatan yang sudah selesai.
