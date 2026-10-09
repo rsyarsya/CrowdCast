@@ -67,3 +67,44 @@ Ketiga job berhasil pada [run 37178062762](https://github.com/rsyarsya/CrowdCast
 - Sinkronkan `534714` dengan `origin/main`, periksa diff PR #37, dan pastikan CI pada commit terbaru berhasil sebelum review akhir dan merge.
 - Pertahankan [Issue #25](https://github.com/rsyarsya/CrowdCast/issues/25) terbuka karena functional testing seluruh MVP belum selesai.
 - Lanjutkan kontrak API/data, endpoint monitoring, serta kelengkapan dependency dan pengujian modul backend secara bertahap.
+
+---
+
+<!-- ====== TAMBAHAN: Frontend Live Monitoring (deadline 2 jam, murni FE) ====== -->
+
+## Tambahan Week 6 — Dashboard Frontend Live Monitoring (Murni Frontend)
+
+**Fokus:** Scaffold dashboard Live Monitoring sepenuhnya di sisi frontend dengan data mock lokal. Backend sengaja tidak disentuh pada pekerjaan ini; tidak ada perubahan pada `backend/`, dan integrasi jaringan frontend–backend belum dikerjakan.
+
+### Ringkasan
+
+Dibangun kerangka halaman `/dashboard` sebagai async Server Component yang menyusun lima komponen presentasional murni (props-in, tanpa fetching di dalam komponen) di atas tema gelap PROPOSED dari FEAT-001. Data berasal dari accessor mock lokal (`@/lib/monitoring`) yang mencerminkan `docs/data/monitoring-simulation.json` persis. Hierarki tampilan mengikuti `docs/design/visual-direction.md`: video sebagai elemen dominan, lalu people count, crowd status, identitas kamera, dan prediksi. Halaman awal (`page.tsx`) menambahkan tautan ke `/dashboard` tanpa hard redirect.
+
+### Deliverable Frontend
+
+| Deliverable | Bukti | Status |
+| --- | --- | --- |
+| Komponen presentasional + CSS Module | `VideoPanel`, `PeopleCountCard`, `CrowdStatusCard`, `CameraInfo`, `PredictionCard`, `DashboardShell` di `frontend/src/components/` | Tersedia pada branch `540091` |
+| Halaman dashboard async Server Component | `frontend/src/app/dashboard/page.tsx` (+ `page.module.css`) | Rute `/dashboard` ter-compile |
+| Tautan landing ke dashboard | `frontend/src/app/page.tsx` | Tanpa hard redirect |
+| Pengujian komponen & dashboard | `frontend/tests/components.test.tsx`, `frontend/tests/dashboard.test.tsx` (keduanya jsdom) | Lulus |
+
+### Hasil Verifikasi Lokal (dari `frontend/`)
+
+| Pemeriksaan | Hasil |
+| --- | --- |
+| `npm run test` | Lulus (10 test: health, monitoring, components, dashboard) |
+| `npm run typecheck` | Lulus |
+| `npm run lint` | Lulus |
+| `npm run build` | Build produksi berhasil; rute `/dashboard` ter-compile |
+
+Test dashboard memverifikasi nilai mock muncul: `people_count` 37, `crowd_status` Ramai, `camera_id` CAM-01, dan lokasi Lobi Gedung A.
+
+### Batas, Mock, dan Keputusan Terbuka
+
+- **Pemetaan warna status (TBD):** Sepi → `--status-sepi` (cyan-100), Normal → `--status-normal` (purple-400), Ramai → `--status-ramai` (pink-300) merupakan asumsi sementara; dokumen palet masih menandai pemetaan ini TBD dan menunggu keputusan tim.
+- **Nilai prediksi SIMULASI:** Angka prediksi adalah mock, bukan keluaran model AI, dan diberi label `simulasi` yang terlihat di UI serta pada tipe dan data mock.
+- **Tema gelap + token PROPOSED:** Tema gelap dan 8 token palet masih berstatus PROPOSED, belum menjadi design system final.
+- **Integrasi backend tertunda:** Data masih bersumber dari accessor mock lokal; titik swap ke API nyata (`process.env.NEXT_PUBLIC_API_BASE_URL`) sudah ditandai di `src/lib/monitoring/index.ts` dengan signature stabil.
+- **Streaming video placeholder:** `VideoPanel` hanya placeholder 16:9; belum ada stream.
+- **Pekerjaan ini murni frontend:** `backend/` tidak diubah sama sekali.

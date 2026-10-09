@@ -1,0 +1,32 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.25rem;
+  background: var(--dark-800);
+  border: 1px solid var(--slate-600);
+  border-radius: 0.75rem;
+}
+
+.label {
+  font-size: 0.85rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--purple-200);
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.key {
+  font-size: 0.75rem;
+  color: var(--slate-600);
+}
+
+.value {
+  font-size: 1rem;
+  color: var(--cyan-100);
+}
