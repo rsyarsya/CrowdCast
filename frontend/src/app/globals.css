@@ -1,6 +1,31 @@
+/*
+ * CrowdCast dark theme.
+ * NOTE: This dark theme and its palette tokens are PROPOSED. The design
+ * palette doc still marks these values as subject to team review, so treat
+ * them as a temporary direction rather than a finalized decision.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Palette tokens (PROPOSED) */
+  --dark-900: #332b48; /* dashboard background */
+  --dark-800: #3c4059; /* surface/panel */
+  --slate-600: #4c587e; /* border/muted */
+  --purple-500: #8977c9; /* secondary accent */
+  --purple-400: #bc8dff; /* primary accent/interactive */
+  --pink-300: #fc9bd3; /* non-critical highlight */
+  --purple-200: #dabaff; /* soft highlight */
+  --cyan-100: #d4faff; /* bright info / foreground text */
+
+  /* Dark body mapping: dark background with bright high-contrast text */
+  --background: var(--dark-900);
+  --foreground: var(--cyan-100);
+
+  /*
+   * TEMPORARY ASSUMPTION pending team decision (palette doc marks status
+   * mapping TBD).
+   */
+  --status-sepi: var(--cyan-100);
+  --status-normal: var(--purple-400);
+  --status-ramai: var(--pink-300);
 }
 
 * {
