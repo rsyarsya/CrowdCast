@@ -1,8 +1,10 @@
 # Progress Week 6
 
-**Periode:** 2–4 Oktober 2026<br>
-**Disusun per:** 4 Oktober 2026<br>
-**Status:** Verifikasi lokal dan CI berhasil; menunggu review
+**Periode:** 2–9 Oktober 2026<br>
+**Diperbarui per:** 9 Oktober 2026<br>
+**Status terbaru:** Fondasi dan CI sudah di-merge melalui PR #35 sampai #38. Dashboard frontend tersedia pada PR #39 dan menunggu review.
+
+Bagian verifikasi awal di bawah mencatat kondisi pada 4 Oktober sebelum merge. Tambahan bertanggal 9 Oktober mencatat dashboard frontend dan bukti CI terbaru. Status review PR #36 dan #37 dalam catatan awal bersifat historis.
 
 ## Ringkasan
 
@@ -70,9 +72,17 @@ Ketiga job berhasil pada [run 37178062762](https://github.com/rsyarsya/CrowdCast
 
 ---
 
-<!-- ====== TAMBAHAN: Frontend Live Monitoring (deadline 2 jam, murni FE) ====== -->
+<!-- Tambahan progress frontend per 9 Oktober 2026 -->
 
 ## Tambahan Week 6 — Dashboard Frontend Live Monitoring (Murni Frontend)
+
+**Tanggal:** 9 Oktober 2026<br>
+**Bukti implementasi:** commit `9473fe4` pada [PR #39](https://github.com/rsyarsya/CrowdCast/pull/39), branch `540091`<br>
+**Status:** Menunggu approval anggota lain sebelum Squash and Merge.
+
+CI pada commit `9473fe4` berhasil melalui [run 37956418304](https://github.com/rsyarsya/CrowdCast/actions/runs/37956418304). Job frontend-check memverifikasi 10 test, typecheck, lint, dan build produksi. Job repository-check dan backend-test juga berhasil. Hasil CI ini terpisah dari catatan pengujian lokal di bawah. Perubahan setelah commit tersebut perlu mengikuti hasil pemeriksaan PR terbaru.
+
+Navigasi History ditampilkan sebagai "Segera hadir" dan tidak dapat diklik sampai rute tersedia, sehingga demo tidak mengarah ke halaman 404.
 
 **Fokus:** Scaffold dashboard Live Monitoring sepenuhnya di sisi frontend dengan data mock lokal. Backend sengaja tidak disentuh pada pekerjaan ini; tidak ada perubahan pada `backend/`, dan integrasi jaringan frontend–backend belum dikerjakan.
 
