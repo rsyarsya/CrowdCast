@@ -1,0 +1,50 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.25rem;
+  background: var(--dark-800);
+  border: 1px solid var(--slate-600);
+  border-radius: 0.75rem;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.label {
+  font-size: 0.85rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--purple-200);
+}
+
+.badge {
+  padding: 0.1rem 0.5rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--dark-900);
+  background: var(--pink-300);
+  border-radius: 999px;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.key {
+  font-size: 0.75rem;
+  color: var(--slate-600);
+}
+
+.value {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--cyan-100);
+}

@@ -1,0 +1,44 @@
+.shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  background: var(--dark-800);
+  border-bottom: 1px solid var(--slate-600);
+}
+
+.title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--cyan-100);
+}
+
+.nav {
+  display: flex;
+  gap: 1rem;
+}
+
+.link {
+  color: var(--purple-400);
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.unavailable {
+  color: var(--purple-400);
+}
+
+.content {
+  flex: 1;
+  padding: 1.5rem;
+}

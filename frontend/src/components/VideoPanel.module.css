@@ -1,0 +1,19 @@
+.panel {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--dark-800);
+  border: 1px solid var(--slate-600);
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.label {
+  color: var(--slate-600);
+  font-size: 1rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
