@@ -9,8 +9,8 @@ interface DashboardShellProps {
 
 /**
  * DashboardShell provides the header (title + nav) and renders children below
- * it. Pure props-in; no data fetching. The History link is a placeholder for a
- * future route.
+ * it. Pure props-in; no data fetching. History stays unavailable until its
+ * route is implemented.
  */
 export default function DashboardShell({ children }: DashboardShellProps) {
   return (
@@ -21,10 +21,9 @@ export default function DashboardShell({ children }: DashboardShellProps) {
           <Link className={styles.link} href="/dashboard">
             Dashboard
           </Link>
-          {/* History route is a placeholder; the page does not exist yet. */}
-          <Link className={styles.link} href="/history">
-            History
-          </Link>
+          <span className={styles.unavailable} aria-disabled="true">
+            History (Segera hadir)
+          </span>
         </nav>
       </header>
       <main className={styles.content}>{children}</main>
