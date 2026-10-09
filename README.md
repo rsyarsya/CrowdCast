@@ -4,9 +4,9 @@ CrowdCast adalah proyek Senior Project Teknologi Informasi DTETI UGM untuk peman
 
 ## Status Implementasi
 
-Per 4 Oktober 2026, aplikasi menyediakan scaffold FastAPI dan Next.js, halaman awal frontend, endpoint `GET /health` pada masing-masing aplikasi, serta CI untuk pengujian, lint, dan build.
+Per 9 Oktober 2026, aplikasi menyediakan scaffold FastAPI dan Next.js, endpoint `GET /health` pada masing-masing aplikasi, serta dashboard frontend `/dashboard` berbasis data mock lokal. Dashboard menampilkan video placeholder, people count, status keramaian, identitas kamera, dan prediksi berlabel simulasi. Landing menyediakan tautan dashboard, sementara History ditandai "Segera hadir". Implementasi dashboard telah masuk ke `main` melalui [PR #39](https://github.com/rsyarsya/CrowdCast/pull/39).
 
-Database, autentikasi, pipeline video/AI, penghitungan orang, klasifikasi, prediksi, dashboard monitoring, dan integrasi frontend–backend belum tersedia sebagai alur end-to-end. Pengembangan awal bersifat **local-first**; recorded video menjadi fallback resmi bila live CCTV tidak tersedia. Cloud tetap menjadi requirement produk akhir.
+Streaming video, database, autentikasi, pipeline video/AI, penghitungan orang, klasifikasi, prediksi nyata, dan integrasi frontend–backend belum tersedia sebagai alur end-to-end. Data dashboard mengikuti [JSON simulasi](docs/data/monitoring-simulation.json). Tema gelap masih **PROPOSED** dan pemetaan warna status masih **TBD**. Pengembangan awal bersifat **local-first**; recorded video menjadi fallback resmi bila live CCTV tidak tersedia. Cloud tetap menjadi requirement produk akhir.
 
 ## Organisasi Repository
 
@@ -30,6 +30,7 @@ Frontend dan backend memiliki dependency masing-masing. Struktur dipertahankan d
 
 2. Ikuti [panduan backend](backend/README.md) menggunakan Python 3.12. Server berjalan pada `http://localhost:8000`; Swagger UI tersedia pada `/docs`.
 3. Pada terminal terpisah, ikuti [panduan frontend](frontend/README.md) menggunakan Node.js 22 dan npm. Aplikasi berjalan pada `http://localhost:3000`.
+4. Buka `http://localhost:3000/dashboard` untuk melihat demo frontend dengan mock 37 orang, status Ramai, kamera CAM-01, dan lokasi Lobi Gedung A. Prediksi yang ditampilkan merupakan simulasi.
 
 Kedua endpoint `/health` memeriksa aplikasi masing-masing. Menjalankan kedua server belum menghubungkan frontend dengan backend. File `.env.example` menyiapkan konfigurasi untuk fitur berikutnya; scaffold aktif belum menggunakannya.
 
@@ -43,11 +44,13 @@ Perintah pengujian tersedia pada README masing-masing aplikasi. [CrowdCast CI](.
 
 CI dipicu pada PR menuju `main`/`dev` dan push ke kedua branch tersebut. GitHub Pages menerbitkan dokumentasi dari `docs/`; aplikasi Next.js dan server FastAPI belum dideploy melalui Pages.
 
+Pada revisi dashboard `7e4d22b`, 10 test frontend, typecheck, lint, dan build produksi berhasil secara lokal dan pada [CI run 37959942006](https://github.com/rsyarsya/CrowdCast/actions/runs/37959942006). Ketiga job CI berhasil. Pengujian dashboard memeriksa komponen dan nilai mock, belum mencakup streaming atau komunikasi API antaraplikasi. Periksa Actions untuk status commit terbaru.
+
 ## Dokumentasi Proyek
 
 - [GitHub Pages](https://rsyarsya.github.io/CrowdCast/) dan [sumber dokumentasi](docs/index.md).
 - [Week 5: fondasi backend dan keputusan stack](docs/progress/week-05.md).
-- [Week 6: verifikasi backend/frontend dan CI](docs/progress/week-06.md).
+- [Week 6: verifikasi CI dan dashboard frontend mock](docs/progress/week-06.md).
 - [Rancangan data monitoring](docs/design/monitoring-data.md).
 - [Issue](https://github.com/rsyarsya/CrowdCast/issues) dan [Project Board](https://github.com/users/rsyarsya/projects/2).
 
@@ -76,6 +79,6 @@ Jangan commit `.env`, credential, model weights, dataset besar, dependency lokal
 
 ## Kelompok 03 LabDas 1
 
-- Rasyadwa Arsya Irnantyanto — 24/534174/TK/59283
+- Rasyadwa Arsya Irnantyanto — 24/534714/TK/59283
 - Ghaisan Rifqi Kamiel — 24/540091/TK/59899
 - Raditya Azhar Ananta — 24/539913/TK/59881
