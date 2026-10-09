@@ -74,10 +74,6 @@ Gunakan branch anggota permanen: `534714` (Rasyadwa), `539913` (Raditya), dan `5
 
 Jangan commit `.env`, credential, model weights, dataset besar, dependency lokal, atau hasil build. Gunakan placeholder pada `.env.example` dan `git revert` untuk membatalkan perubahan yang sudah masuk `main`.
 
-## Pengembangan Backend
-
-Lihat [panduan menjalankan dan menguji backend](backend/README.md) serta [progres Week 5](docs/progress/week-05.md). Kerangka awal menyediakan `/health`; database, autentikasi, dan AI belum diintegrasikan.
-
 ## Kelompok 03 LabDas 1
 
 - Rasyadwa Arsya Irnantyanto — 24/534174/TK/59283
