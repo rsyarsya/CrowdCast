@@ -66,3 +66,15 @@ coverage/
 # Frontend source lib/ must not be caught by the Python `lib/` rule above
 !frontend/src/lib/
 !frontend/src/lib/**
+
+# AI datasets, videos, and experiment outputs (never commit)
+backend/data/*
+!backend/data/models/
+backend/data/models/*
+!backend/data/models/.gitkeep
+backend/experiments/outputs/
+*.mp4
+*.avi
+*.mkv
+*.onnx
+*.engine

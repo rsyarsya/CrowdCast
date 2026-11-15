@@ -1,0 +1,6 @@
+# AI/vision experiment dependencies. Not installed by CI.
+# Install PyTorch with CUDA FIRST (see backend/README.md), otherwise pip pulls
+# the CPU-only torch wheel from PyPI as a dependency of ultralytics.
+ultralytics==8.4.213
+pandas==3.1.1
+scipy==1.18.1
