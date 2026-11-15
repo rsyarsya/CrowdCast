@@ -1,2 +1,7 @@
 fastapi==0.142.2
 uvicorn==0.54.0
+pydantic-settings==2.16.3
+sqlalchemy[asyncio]==2.1.8
+asyncpg==0.32.0
+pyjwt==2.15.1
+pwdlib[bcrypt]==0.4.2

@@ -1,50 +1,72 @@
-from typing import List, Union
-from pydantic import AnyHttpUrl, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
 import json
-import os
+from functools import lru_cache
+from pathlib import Path
+from typing import Annotated
+
+from pydantic import SecretStr, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+
+BACKEND_DIR = Path(__file__).resolve().parents[2]
+
 
 class Settings(BaseSettings):
+    """Application settings read from environment variables and backend/.env.
+
+    Fields without a default are required: the app refuses to start when they
+    are missing instead of silently running with insecure placeholder values.
+    """
+
+    model_config = SettingsConfigDict(
+        env_file=BACKEND_DIR / ".env",
+        env_file_encoding="utf-8",
+        case_sensitive=True,
+        extra="ignore",
+    )
+
     PROJECT_NAME: str = "CrowdCast API"
-    VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
 
-    # Security
-    SECRET_KEY: str = "crowdcast-secret-key-super-secure-dteti-ugm"
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  
-
     # Database
-    DATABASE_URL: str = "sqlite:///./crowdcast.db"
+    DATABASE_URL: str
+    DATABASE_ECHO: bool = False
 
-    # Initial Superuser / Admin
-    FIRST_SUPERUSER_EMAIL: str = "admin@crowdcast.local"
-    FIRST_SUPERUSER_PASSWORD: str = "adminpassword123"
+    # Security
+    SECRET_KEY: SecretStr
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24
+
+    # Initial administrator; only required by the seed script.
+    FIRST_SUPERUSER_EMAIL: str | None = None
+    FIRST_SUPERUSER_PASSWORD: SecretStr | None = None
 
     # CORS
-    BACKEND_CORS_ORIGINS: List[str] = [
+    BACKEND_CORS_ORIGINS: Annotated[list[str], NoDecode] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
     ]
 
-    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
-    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
-        if isinstance(v, str) and not v.startswith("["):
-            return [i.strip() for i in v.split(",")]
-        elif isinstance(v, str) and v.startswith("["):
-            return json.loads(v)
-        return v
-
-    # AI & Video Settings
+    # AI and video
     DEFAULT_YOLO_MODEL: str = "yolov8n.pt"
-    DEVICE: str = ""  
-    VIDEO_SAMPLE_PATH: str = "backend/data/videos/sample.mp4"
+    DEVICE: str = ""
+    VIDEO_SAMPLE_PATH: str = "data/videos/sample.mp4"
 
-    model_config = SettingsConfigDict(
-        env_file=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env"),
-        env_file_encoding="utf-8",
-        case_sensitive=True,
-        extra="ignore"
-    )
+    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, value: str | list[str]) -> list[str]:
+        """Accept a JSON list or a comma-separated string."""
+        if isinstance(value, str):
+            value = value.strip()
+            if value.startswith("["):
+                return json.loads(value)
+            return [origin.strip() for origin in value.split(",") if origin.strip()]
+        return value
 
-settings = Settings()
+
+@lru_cache
+def get_settings() -> Settings:
+    """Return the cached settings instance.
+
+    Tests that change environment variables must call
+    ``get_settings.cache_clear()`` afterwards.
+    """
+    return Settings()
