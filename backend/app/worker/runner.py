@@ -30,6 +30,7 @@ from typing import Any, Protocol
 from app.services.vision.classifier import StatusThresholds, classify
 from app.services.vision.pipeline import CountingPipeline
 from app.services.vision.types import Box, CrowdStatus, IntervalRecord, LiveState
+from app.worker.forecasting import ForecastPoint, ForecastRunner
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,7 @@ class Sender(Protocol):
     def post_records(self, records: list[tuple[IntervalRecord, CrowdStatus]]) -> None: ...
     def put_live(self, live: LiveState) -> None: ...
     def put_frame(self, jpeg: bytes) -> None: ...
+    def post_predictions(self, predictions: list[ForecastPoint]) -> None: ...
 
 
 @dataclass
@@ -50,6 +52,7 @@ class WorkerStats:
     frames_sent: int = 0
     detections: int = 0
     records_sent: int = 0
+    predictions_sent: int = 0
     send_errors: int = 0
     last_error: str = ""
     started: float = field(default_factory=time.monotonic)
@@ -66,6 +69,7 @@ class VisionWorker:
         detect_interval_s: float = 0.5,
         stream_interval_s: float = 0.1,
         now: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
+        forecast: ForecastRunner | None = None,
     ) -> None:
         self.detector = detector
         self.encoder = encoder
@@ -75,6 +79,7 @@ class VisionWorker:
         self.detect_interval_s = detect_interval_s
         self.stream_interval_s = stream_interval_s
         self.now = now
+        self.forecast = forecast
         self.stats = WorkerStats()
 
         self._lock = threading.Lock()
@@ -148,6 +153,7 @@ class VisionWorker:
                 break
             # Stored history uses the plain status of the interval mean (no dwell).
             self._pending_records.append((record, classify(record.people_count, self.thresholds)))
+            self._forecast(record)
         if self._pending_records:
             try:
                 self.sender.post_records(self._pending_records)
@@ -155,6 +161,18 @@ class VisionWorker:
                 self._pending_records = []
             except Exception as exc:
                 self._note_error(exc)
+
+    def _forecast(self, record: IntervalRecord) -> None:
+        """Forecasts are cheap to recompute, so a failed upload is not retried."""
+        if self.forecast is None:
+            return
+        try:
+            points = self.forecast.on_record(record.start, record.people_count)
+            if points:
+                self.sender.post_predictions(points)
+                self.stats.predictions_sent += len(points)
+        except Exception as exc:
+            self._note_error(exc)
 
     @property
     def pending_records(self) -> int:
@@ -221,11 +239,12 @@ class VisionWorker:
         elapsed = time.monotonic() - self.stats.started
         live = self._live
         logger.info(
-            "read %.1f fps, detect %.1f/s, sent %d frames, %d records, %d errors, live=%s",
+            "read %.1f fps, detect %.1f/s, sent %d frames, %d records, %d forecasts, %d errors, live=%s",
             self.stats.frames_read / elapsed,
             self.stats.detections / elapsed,
             self.stats.frames_sent,
             self.stats.records_sent,
+            self.stats.predictions_sent,
             self.stats.send_errors,
             f"{live.raw_count} ({live.crowd_status})" if live else "-",
         )

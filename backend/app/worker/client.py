@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 from urllib.parse import quote
 
 import httpx
 
 from app.services.vision.types import CrowdStatus, IntervalRecord, LiveState
+from app.worker.forecasting import ForecastPoint
 
 
 class IngestClient:
@@ -31,6 +33,26 @@ class IngestClient:
             ]
         }
         self._http.post("/records", json=body).raise_for_status()
+
+    def get_recent_records(self, limit: int = 180) -> list[tuple[datetime, int]]:
+        response = self._http.get("/records/recent", params={"limit": limit})
+        response.raise_for_status()
+        return [(datetime.fromisoformat(r["timestamp"]), r["people_count"]) for r in response.json()]
+
+    def post_predictions(self, predictions: list[ForecastPoint]) -> None:
+        body = {
+            "predictions": [
+                {
+                    "timestamp": p.timestamp.isoformat(),
+                    "horizon_minutes": p.horizon_minutes,
+                    "predicted_count": p.predicted_count,
+                    "predicted_status": p.predicted_status,
+                    "model_name": p.model_name,
+                }
+                for p in predictions
+            ]
+        }
+        self._http.post("/predictions", json=body).raise_for_status()
 
     def put_live(self, live: LiveState) -> None:
         body = {
