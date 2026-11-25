@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -61,11 +61,17 @@ def shift_to_end(rows: list[MinuteRow], end: datetime) -> list[MinuteRow]:
     return [MinuteRow(row.timestamp + offset, row.people_count) for row in rows]
 
 
-async def backfill(session: AsyncSession, camera_code: str, rows: list[MinuteRow]) -> int:
+async def backfill(
+    session: AsyncSession, camera_code: str, rows: list[MinuteRow], replace: bool = False
+) -> int:
+    """Insert the rows. With `replace`, all existing records of the camera are
+    deleted first, in the same transaction (used after changing the ROI)."""
     camera = await session.scalar(select(Camera).where(Camera.code == camera_code))
     if camera is None:
         raise LookupError(f"Camera {camera_code} does not exist. Register it first.")
     thresholds = StatusThresholds(camera.threshold_normal, camera.threshold_ramai)
+    if replace:
+        await session.execute(delete(CrowdRecord).where(CrowdRecord.camera_id == camera.id))
     inserted = 0
     for start in range(0, len(rows), BATCH_SIZE):
         values = [
@@ -90,6 +96,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--camera", required=True, help="Public camera id, e.g. CAM-02")
     parser.add_argument("--csv", type=Path, required=True, help="Per-minute CSV (relative to backend/)")
     parser.add_argument("--end", type=datetime.fromisoformat, help="ISO time the history should end at")
+    parser.add_argument(
+        "--replace",
+        action="store_true",
+        help="Delete ALL existing records of the camera first (e.g. after changing its ROI)",
+    )
     return parser.parse_args()
 
 
@@ -103,7 +114,7 @@ async def main() -> None:
     engine = create_engine(get_settings())
     try:
         async with create_sessionmaker(engine)() as session:
-            inserted = await backfill(session, args.camera, rows)
+            inserted = await backfill(session, args.camera, rows, replace=args.replace)
     finally:
         await engine.dispose()
     print(

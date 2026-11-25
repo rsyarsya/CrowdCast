@@ -172,11 +172,13 @@ Worker memutar video rekaman seolah CCTV live, menjalankan YOLO (`yolo11n`, imgs
 2. Daftarkan kamera dan isi riwayat awal (sekali saja):
 
    ```powershell
-   .\.venv\Scripts\python.exe -m app.scripts.register_camera --code CAM-02 --name "Kabukicho" --location "Kabukicho, Shinjuku" --source data/videos/kabukicho_night_2026-08-25_720p.mp4 --roi experiments/configs/roi/kabukicho.json --normal 4 --ramai 8
+   .\.venv\Scripts\python.exe -m app.scripts.register_camera --code CAM-02 --name "Kabukicho" --location "Kabukicho, Shinjuku" --source data/videos/kabukicho_night_2026-08-25_720p.mp4 --roi experiments/configs/roi/kabukicho.json --normal 4 --ramai 12
    .\.venv\Scripts\python.exe -m app.scripts.backfill_records --camera CAM-02 --csv experiments/outputs/phase3/kabukicho_minutes.csv
    ```
 
    Backfill memuat hitungan per menit dari pemrosesan rekaman 12 jam dan menggeser waktunya agar berakhir tepat sebelum sekarang.
+
+   Setelah ROI diubah (`experiments/roi_tool.py --camera kabukicho --minutes 0 300 390 600`), jalankan ulang `experiments/phase3_dataset.py build` untuk dataset dan threshold baru, `register_camera` dengan threshold itu, lalu `backfill_records ... --replace` untuk mengganti seluruh riwayat kamera.
 
 3. Jalankan API (bagian sebelumnya), lalu di terminal lain:
 

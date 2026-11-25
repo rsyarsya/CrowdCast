@@ -1,11 +1,16 @@
-"""Draw a region of interest (ROI) polygon on one video frame.
+"""Draw a region of interest (ROI) polygon on a video frame.
 
 Run from the backend folder:
-    .\\.venv\\Scripts\\python.exe experiments\\roi_tool.py --camera kabukicho --minute 390
+    .\\.venv\\Scripts\\python.exe experiments\\roi_tool.py --camera kabukicho --minutes 0 300 390 600
+
+With several minutes, the frames are blended into one image, so people from
+different times appear as faint figures. This shows where people walk and
+stand over the whole recording, not just in one scene.
 
 Controls:
     left click   add a point
     right click  remove the last point
+    c            clear all points
     Enter        save (needs at least 3 points)
     Esc          quit without saving
 
@@ -33,27 +38,37 @@ ROI_DIR = BACKEND_DIR / "experiments" / "configs" / "roi"
 WINDOW = "CrowdCast ROI - left: add, right: undo, Enter: save, Esc: quit"
 
 
-def read_frame(path: Path, minute: float):
+def read_frames(path: Path, minutes: list[float]) -> list[np.ndarray]:
     cap = cv2.VideoCapture(str(path))
     if not cap.isOpened():
         raise SystemExit(f"Cannot open {path}")
     fps = cap.get(cv2.CAP_PROP_FPS) or 30
-    cap.set(cv2.CAP_PROP_POS_FRAMES, int(minute * 60 * fps))
-    ok, frame = cap.read()
+    frames = []
+    for minute in minutes:
+        cap.set(cv2.CAP_PROP_POS_FRAMES, int(minute * 60 * fps))
+        ok, frame = cap.read()
+        if not ok:
+            raise SystemExit(f"Cannot read a frame at minute {minute}")
+        frames.append(frame)
     cap.release()
-    if not ok:
-        raise SystemExit(f"Cannot read a frame at minute {minute}")
-    return frame
+    return frames
+
+
+def blend(frames: list[np.ndarray]) -> np.ndarray:
+    """Average the frames so every scene is equally visible."""
+    return np.mean(np.stack(frames).astype(np.float32), axis=0).astype(np.uint8)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--camera", required=True, help="Camera name, used as the file name")
     parser.add_argument("--video", type=Path, default=next((BACKEND_DIR / "data" / "videos").glob("*.mp4"), None))
-    parser.add_argument("--minute", type=float, default=0, help="Video position of the frame to draw on")
+    parser.add_argument(
+        "--minutes", type=float, nargs="+", default=[0], help="Video positions to blend into the base image"
+    )
     args = parser.parse_args()
 
-    frame = read_frame(args.video, args.minute)
+    frame = blend(read_frames(args.video, args.minutes))
     h, w = frame.shape[:2]
     out_path = ROI_DIR / f"{args.camera}.json"
     points: list[tuple[int, int]] = []
@@ -86,6 +101,8 @@ def main() -> None:
         cv2.imshow(WINDOW, view)
 
         key = cv2.waitKey(30) & 0xFF
+        if key == ord("c"):
+            points.clear()
         if key == 27 or cv2.getWindowProperty(WINDOW, cv2.WND_PROP_VISIBLE) < 1:
             print("Quit without saving.")
             break

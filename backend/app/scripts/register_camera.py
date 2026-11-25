@@ -4,7 +4,7 @@ Run from the backend folder after `alembic upgrade head`, for example:
     .\\.venv\\Scripts\\python.exe -m app.scripts.register_camera --code CAM-02 \\
         --name "Kabukicho" --location "Kabukicho, Shinjuku" \\
         --source data/videos/kabukicho_night_2026-08-25_720p.mp4 \\
-        --roi experiments/configs/roi/kabukicho.json --normal 4 --ramai 8
+        --roi experiments/configs/roi/kabukicho.json --normal 4 --ramai 12
 
 Running it again with the same code updates the existing camera.
 """
