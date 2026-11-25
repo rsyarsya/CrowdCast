@@ -1,43 +1,48 @@
 from datetime import datetime, timedelta, timezone
-from typing import Any, Optional, Union
-import jwt
-from passlib.context import CryptContext
-from app.core.config import settings
+from typing import Any
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+import jwt
+from pwdlib import PasswordHash
+from pwdlib.hashers.bcrypt import BcryptHasher
+
+from app.core.config import get_settings
+
+password_hash = PasswordHash((BcryptHasher(),))
+
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    return password_hash.verify(plain_password, hashed_password)
+
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    return password_hash.hash(password)
+
 
 def create_access_token(
-    subject: Union[str, Any],
+    subject: str | Any,
     role: str = "operator",
-    expires_delta: Optional[timedelta] = None
+    expires_delta: timedelta | None = None,
 ) -> str:
-    if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
-    else:
-        expire = datetime.now(timezone.utc) + timedelta(
-            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
-        )
-    
-    to_encode = {
-        "sub": str(subject),
-        "role": role,
-        "exp": expire,
-        "iat": datetime.now(timezone.utc),
-    }
-    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
-    return encoded_jwt
+    settings = get_settings()
+    now = datetime.now(timezone.utc)
+    expire = now + (
+        expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
+    payload = {"sub": str(subject), "role": role, "exp": expire, "iat": now}
+    return jwt.encode(
+        payload,
+        settings.SECRET_KEY.get_secret_value(),
+        algorithm=settings.ALGORITHM,
+    )
 
-def decode_access_token(token: str) -> Optional[dict]:
+
+def decode_access_token(token: str) -> dict[str, Any] | None:
+    settings = get_settings()
     try:
-        decoded_token = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        return jwt.decode(
+            token,
+            settings.SECRET_KEY.get_secret_value(),
+            algorithms=[settings.ALGORITHM],
         )
-        return decoded_token
     except jwt.PyJWTError:
         return None

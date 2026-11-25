@@ -28,7 +28,7 @@ Frontend dan backend memiliki dependency masing-masing. Struktur dipertahankan d
    cd CrowdCast
    ```
 
-2. Ikuti [panduan backend](backend/README.md) menggunakan Python 3.12. Server berjalan pada `http://localhost:8000`; Swagger UI tersedia pada `/docs`.
+2. Jalankan PostgreSQL lokal dengan `docker compose up -d db` (membutuhkan Docker Desktop; port host 5433), lalu ikuti [panduan backend](backend/README.md) menggunakan Python 3.12. Server berjalan pada `http://localhost:8000`; Swagger UI tersedia pada `/docs`.
 3. Pada terminal terpisah, ikuti [panduan frontend](frontend/README.md) menggunakan Node.js 22 dan npm. Aplikasi berjalan pada `http://localhost:3000`.
 4. Buka `http://localhost:3000/dashboard` untuk melihat demo frontend dengan mock 37 orang, status Ramai, kamera CAM-01, dan lokasi Lobi Gedung A. Prediksi yang ditampilkan merupakan simulasi.
 

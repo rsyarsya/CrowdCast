@@ -1,12 +1,18 @@
-from sqlalchemy import Column, Integer, String, Boolean
-from app.db.session import Base
+from sqlalchemy import String
+from sqlalchemy.orm import Mapped, mapped_column
 
-class User(Base):
+from app.db.base import Base, TimestampMixin
+from app.models.enums import UserRole, string_enum
+
+
+class User(TimestampMixin, Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
-    email = Column(String(120), unique=True, index=True, nullable=False)
-    name = Column(String(100), nullable=False)
-    hashed_password = Column(String(255), nullable=False)
-    role = Column(String(20), default="operator", nullable=False)
-    is_active = Column(Boolean, default=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(120), unique=True)
+    name: Mapped[str] = mapped_column(String(100))
+    hashed_password: Mapped[str] = mapped_column(String(255))
+    role: Mapped[UserRole] = mapped_column(
+        string_enum(UserRole, "user_role"), default=UserRole.OPERATOR
+    )
+    is_active: Mapped[bool] = mapped_column(default=True)

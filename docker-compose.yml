@@ -1,0 +1,24 @@
+# Local development services. Credentials below are for local use only.
+#   docker compose up -d db
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: crowdcast-db
+    environment:
+      POSTGRES_USER: crowdcast
+      POSTGRES_PASSWORD: crowdcast
+      POSTGRES_DB: crowdcast
+    ports:
+      - "5433:5432"  # host 5433 avoids clashing with a native PostgreSQL on 5432
+    volumes:
+      - crowdcast-db-data:/var/lib/postgresql/data
+      # Runs once on first start: creates the separate crowdcast_test database.
+      - ./backend/docker/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crowdcast -d crowdcast"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  crowdcast-db-data:
