@@ -1,3 +1,6 @@
+import { getAccessToken } from "@/lib/auth/session";
+import { apiBaseUrl, isMockSource } from "@/lib/config";
+
 import { MOCK_CAMERAS, MOCK_PREDICTIONS, MONITORING_SERIES } from "./mock";
 import type {
   Camera,
@@ -16,8 +19,8 @@ export type {
 
 /**
  * Data accessors for the monitoring UI. They call the CrowdCast backend
- * (`/api/v1`) unless NEXT_PUBLIC_MONITORING_SOURCE=mock, which serves the
- * local mock data for demos without a backend.
+ * (`/api/v1`) with the session token unless NEXT_PUBLIC_MONITORING_SOURCE=mock,
+ * which serves the local mock data for demos without a backend or login.
  *
  * Environment (read on every call so tests can override it):
  * - NEXT_PUBLIC_API_BASE_URL: backend origin, default http://localhost:8000
@@ -41,30 +44,29 @@ export class MonitoringApiError extends Error {
   }
 }
 
-function isMockSource(): boolean {
-  return process.env.NEXT_PUBLIC_MONITORING_SOURCE === "mock";
-}
-
-function apiBaseUrl(): string {
-  const base = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-  return base.replace(/\/+$/, "");
-}
-
 export function defaultCameraId(): string {
   return process.env.NEXT_PUBLIC_DEFAULT_CAMERA_ID || "CAM-01";
 }
 
 async function request<T>(path: string): Promise<T> {
+  const headers: Record<string, string> = { Accept: "application/json" };
+  const token = await getAccessToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
   let response: Response;
   try {
     response = await fetch(`${apiBaseUrl()}/api/v1${path}`, {
       cache: "no-store",
-      headers: { Accept: "application/json" },
+      headers,
     });
   } catch {
     throw new MonitoringApiError("network_error", 0);
   }
 
+  // Missing, expired, or revoked session: the caller sends the user to login.
+  if (response.status === 401) {
+    throw new MonitoringApiError("unauthorized", 401);
+  }
   if (!response.ok) {
     const body: unknown = await response.json().catch(() => null);
     const detail =

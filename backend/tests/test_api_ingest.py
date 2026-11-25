@@ -21,10 +21,14 @@ AUTH = {"X-Worker-Key": KEY}
 
 
 @pytest.fixture
-def worker_client(monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
+def worker_client(
+    monkeypatch: pytest.MonkeyPatch, operator_headers: dict[str, str]
+) -> Iterator[TestClient]:
     monkeypatch.setenv("WORKER_API_KEY", KEY)
     get_settings.cache_clear()
     with TestClient(create_app()) as test_client:
+        # Reads on /cameras need a user login; ingest routes ignore it.
+        test_client.headers.update(operator_headers)
         yield test_client
     get_settings.cache_clear()
 

@@ -6,6 +6,7 @@ import CameraInfo from "@/components/CameraInfo";
 import CrowdStatusCard from "@/components/CrowdStatusCard";
 import PeopleCountCard from "@/components/PeopleCountCard";
 import DashboardMessage from "@/components/DashboardMessage";
+import DashboardShell from "@/components/DashboardShell";
 import PredictionCard from "@/components/PredictionCard";
 import VideoPanel from "@/components/VideoPanel";
 import { MOCK_PREDICTIONS } from "@/lib/monitoring/mock";
@@ -81,5 +82,26 @@ describe("presentational components", () => {
     expect(screen.getByRole("alert").textContent).toContain(
       "Kamera CAM-09 tidak ditemukan.",
     );
+  });
+
+  it("DashboardShell shows the user and a logout button when logged in", () => {
+    render(
+      <DashboardShell user={{ name: "Budi", role: "operator" }}>
+        <p>isi</p>
+      </DashboardShell>,
+    );
+
+    expect(screen.getByText("Budi · Operator")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Keluar" })).toBeTruthy();
+  });
+
+  it("DashboardShell hides the session area without a user", () => {
+    render(
+      <DashboardShell>
+        <p>isi</p>
+      </DashboardShell>,
+    );
+
+    expect(screen.queryByRole("button", { name: "Keluar" })).toBeNull();
   });
 });

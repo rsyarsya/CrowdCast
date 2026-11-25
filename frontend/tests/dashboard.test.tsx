@@ -72,3 +72,18 @@ describe("dashboard composition", () => {
     expect(screen.queryByText("simulasi")).toBeNull();
   });
 });
+
+describe("dashboard session", () => {
+  it("sends an expired session back to login", async () => {
+    vi.stubEnv("NEXT_PUBLIC_MONITORING_SOURCE", "api");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({ detail: "invalid_token" }, 401)),
+    );
+
+    const error = await DashboardPage().catch((e: unknown) => e);
+
+    // next/navigation redirect() throws a control-flow error carrying the URL.
+    expect(String((error as { digest?: string }).digest)).toContain("/login?expired=1");
+  });
+});

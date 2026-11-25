@@ -13,6 +13,12 @@ UTC = timezone.utc
 T0 = datetime(2026, 9, 23, 3, 0, tzinfo=UTC)  # 10:00 WIB
 
 
+@pytest.fixture(autouse=True)
+def logged_in(client: TestClient, operator_headers: dict[str, str]) -> None:
+    """Monitoring routes need a login; every request here is an operator."""
+    client.headers.update(operator_headers)
+
+
 async def add_camera(session: AsyncSession, code: str = "CAM-01") -> Camera:
     camera = Camera(
         code=code,
@@ -191,3 +197,24 @@ async def test_latest_predictions_one_per_horizon(
         "model_name": "moving_average",
         "is_simulation": False,
     }
+
+
+@pytest.mark.parametrize(
+    ("authorization", "code"),
+    [
+        (None, "not_authenticated"),
+        ("Bearer not-a-jwt", "invalid_token"),
+    ],
+)
+async def test_monitoring_requires_login(
+    client: TestClient, db_session: AsyncSession, authorization: str | None, code: str
+) -> None:
+    await add_camera(db_session)
+    del client.headers["Authorization"]
+    headers = {"Authorization": authorization} if authorization else {}
+
+    for path in ("", "/CAM-01/monitoring/latest", "/CAM-01/live", "/CAM-01/stream"):
+        response = client.get(f"{API}{path}", headers=headers)
+        assert response.status_code == 401
+        assert response.json() == {"detail": code}
+        assert response.headers["www-authenticate"] == "Bearer"

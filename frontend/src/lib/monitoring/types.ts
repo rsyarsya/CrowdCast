@@ -41,6 +41,7 @@ export interface Prediction {
  * network failures and unexpected responses.
  */
 export type MonitoringErrorCode =
+  | "unauthorized"
   | "camera_not_found"
   | "no_monitoring_data"
   | "no_prediction"

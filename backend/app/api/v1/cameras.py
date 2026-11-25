@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from fastapi.responses import StreamingResponse
 
-from app.api.deps import DbSession, LiveHubDep
+from app.api.deps import DbSession, LiveHubDep, get_current_user
 from app.core.config import get_settings
 from app.models import Camera
 from app.schemas.monitoring import (
@@ -16,7 +16,12 @@ from app.schemas.monitoring import (
 )
 from app.services import monitoring
 
-router = APIRouter(prefix="/cameras", tags=["monitoring"])
+# Every monitoring route needs a logged-in user (operator or admin).
+router = APIRouter(
+    prefix="/cameras",
+    tags=["monitoring"],
+    dependencies=[Depends(get_current_user)],
+)
 
 # Stable error codes the frontend can branch on.
 CAMERA_NOT_FOUND = "camera_not_found"
@@ -27,7 +32,10 @@ NO_STREAM = "no_stream"
 
 STREAM_BOUNDARY = "crowdcastframe"
 
-NOT_FOUND_DOC = {404: {"description": "camera_not_found or no data yet"}}
+NOT_FOUND_DOC = {
+    401: {"description": "not_authenticated or invalid_token"},
+    404: {"description": "camera_not_found or no data yet"},
+}
 
 
 async def get_camera_or_404(

@@ -42,3 +42,25 @@
   flex: 1;
   padding: 1.5rem;
 }
+
+.session {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: auto;
+}
+
+.user {
+  font-size: 0.85rem;
+  color: var(--purple-200);
+}
+
+.logout {
+  padding: 0.3rem 0.8rem;
+  font-size: 0.85rem;
+  color: var(--cyan-100);
+  background: transparent;
+  border: 1px solid var(--slate-600);
+  border-radius: 0.5rem;
+  cursor: pointer;
+}

@@ -8,6 +8,7 @@ interface DashboardMessageProps {
 }
 
 const MESSAGES: Record<MonitoringErrorCode, (cameraId: string) => string> = {
+  unauthorized: () => "Sesi berakhir. Silakan masuk kembali.",
   camera_not_found: (id) => `Kamera ${id} tidak ditemukan.`,
   no_monitoring_data: (id) => `Belum ada data monitoring untuk kamera ${id}.`,
   no_prediction: (id) => `Belum ada prediksi untuk kamera ${id}.`,

@@ -118,7 +118,20 @@ Mode `--reload` digunakan untuk pengembangan lokal. `/health` hanya menandakan p
 
 ## Endpoint API
 
-Swagger UI (`/docs`) adalah sumber kebenaran kontrak. Ringkasan endpoint `/api/v1` saat ini:
+Swagger UI (`/docs`) adalah sumber kebenaran kontrak.
+
+### Login
+
+Semua endpoint `/cameras` dan `/users` membutuhkan token. Alurnya:
+
+1. `POST /api/v1/auth/login` dengan form `username` (email) dan `password`. Respons berisi `access_token`, `token_type: "bearer"`, dan `expires_in` (detik, default 8 jam).
+2. Kirim header `Authorization: Bearer <access_token>` pada request berikutnya. `GET /api/v1/auth/me` mengembalikan user yang sedang login.
+
+Di Swagger, klik tombol **Authorize**, isi email pada kolom `username` beserta password, lalu semua request dari Swagger otomatis membawa token. Akun administrator pertama dibuat oleh seed dari `FIRST_SUPERUSER_EMAIL`/`FIRST_SUPERUSER_PASSWORD`; akun lain dibuat admin lewat `POST /api/v1/users`.
+
+Role dibaca ulang dari database di setiap request, jadi perubahan role atau penonaktifan akun langsung berlaku walaupun token lama belum kedaluwarsa. Login yang gagal karena email tidak terdaftar, password salah, atau akun nonaktif selalu menjawab `401 invalid_credentials`, sehingga tidak membocorkan email mana yang terdaftar.
+
+### Monitoring (operator dan admin)
 
 | Endpoint | Respons |
 | --- | --- |
@@ -127,11 +140,24 @@ Swagger UI (`/docs`) adalah sumber kebenaran kontrak. Ringkasan endpoint `/api/v
 | `GET /cameras/{camera_id}/monitoring?start=&end=&limit=` | Riwayat urut waktu naik. Tanpa `start`, mengembalikan `limit` data terbaru (default 500, maksimal 2000). `start`/`end` wajib memakai offset zona waktu. |
 | `GET /cameras/{camera_id}/predictions/latest` | Prediksi terbaru per horizon (5/15/30 menit), termasuk `target_time` dan `is_simulation`. |
 | `GET /cameras/{camera_id}/live` | Jumlah dan status saat ini dari vision worker (`people_count`, `smoothed_count`, `crowd_status`, `is_stale`). Status live memakai dwell time 30 detik sehingga tidak berkedip. |
-| `GET /cameras/{camera_id}/stream` | Video beranotasi MJPEG (`multipart/x-mixed-replace`), bisa langsung dipakai sebagai `src` tag `<img>`. |
+| `GET /cameras/{camera_id}/stream` | Video beranotasi MJPEG (`multipart/x-mixed-replace`). Karena butuh token, browser tidak bisa memakainya langsung sebagai `src` tag `<img>`; frontend perlu meneruskannya lewat route server yang menambahkan header `Authorization`. |
 
-`camera_id` adalah kode publik kamera (misalnya `CAM-01`). Waktu dikirim dalam zona `TIMEZONE` (default WIB, `+07:00`). Error 404 memakai kode stabil pada `detail`: `camera_not_found`, `no_monitoring_data`, `no_prediction`, `no_live_data`, atau `no_stream`. Endpoint baca belum memerlukan login.
+### Manajemen (admin saja)
 
-Endpoint `/api/v1/ingest/cameras/{camera_id}/...` (`GET config`, `POST records`, `PUT live`, `PUT frame`) hanya untuk vision worker dan wajib memakai header `X-Worker-Key` yang sama dengan `WORKER_API_KEY`. Bila `WORKER_API_KEY` kosong, endpoint ingest menolak semua permintaan (HTTP 503).
+| Endpoint | Fungsi |
+| --- | --- |
+| `GET /cameras/{camera_id}/config` | Konfigurasi lengkap kamera: threshold, ROI, dan `source` dengan password tersensor (`rtsp://user:***@host/...`). |
+| `POST /cameras` | Mendaftarkan kamera: `camera_id` (huruf besar, angka, `-`), `name`, `location`, `source`, `threshold_normal`, `threshold_ramai`, dan `roi` opsional (minimal 3 titik, koordinat 0–1). |
+| `PATCH /cameras/{camera_id}` | Mengubah sebagian field. `is_active: false` menghentikan kamera tanpa menghapus riwayatnya; `roi: null` berarti seluruh frame dihitung. |
+| `GET /users` | Daftar user tanpa password. |
+| `POST /users` | Membuat user (`email`, `name`, `password` minimal 8 karakter, `role` `operator`/`admin`). |
+| `PATCH /users/{user_id}` | Mengubah `name`, `role`, `password`, atau `is_active`. Admin tidak bisa menonaktifkan atau menurunkan role dirinya sendiri, sehingga selalu ada admin aktif. |
+
+Tidak ada endpoint hapus permanen: menghapus kamera berarti menghapus seluruh riwayatnya, jadi kamera dan user cukup dinonaktifkan.
+
+`camera_id` adalah kode publik kamera (misalnya `CAM-01`). Waktu dikirim dalam zona `TIMEZONE` (default WIB, `+07:00`). Error memakai kode stabil pada `detail`: 401 `not_authenticated`, `invalid_token`, atau `invalid_credentials`; 403 `forbidden`; 404 `camera_not_found`, `user_not_found`, `no_monitoring_data`, `no_prediction`, `no_live_data`, atau `no_stream`; 409 `camera_code_exists` atau `email_already_exists`; 422 `cannot_modify_self` atau `invalid_thresholds`.
+
+Endpoint `/api/v1/ingest/cameras/{camera_id}/...` (`GET config`, `POST records`, `PUT live`, `PUT frame`) hanya untuk vision worker, tidak memakai login user, dan wajib memakai header `X-Worker-Key` yang sama dengan `WORKER_API_KEY`. Bila `WORKER_API_KEY` kosong, endpoint ingest menolak semua permintaan (HTTP 503).
 
 ## Vision Worker
 
@@ -177,11 +203,11 @@ Test selalu memakai database `crowdcast_test` (lihat [`tests/conftest.py`](tests
 ## Organisasi Kode
 
 - [`app/main.py`](app/main.py): `create_app()`, CORS, dan lifespan yang membuat serta menutup engine database.
-- [`app/api/`](app/api/): router health, router `/api/v1` (`v1/cameras.py`), dan dependency bersama (`deps.py`, session database per request).
+- [`app/api/`](app/api/): router health, router `/api/v1` (`auth.py`, `cameras.py`, `camera_admin.py`, `users.py`, `ingest.py`), dan dependency bersama (`deps.py`: session database, user dari token, syarat admin).
 - [`app/schemas/`](app/schemas/): schema respons API, termasuk konversi waktu ke WIB.
-- [`app/services/`](app/services/): query monitoring (`monitoring.py`), state live dan frame di memori (`live.py`), serta pipeline dan detector vision (`vision/`).
+- [`app/services/`](app/services/): query monitoring (`monitoring.py`), aturan user dan kamera (`users.py`, `cameras.py`), state live dan frame di memori (`live.py`), serta pipeline dan detector vision (`vision/`).
 - [`app/worker/`](app/worker/): vision worker (`python -m app.worker`): replay video, thread deteksi, overlay MJPEG, dan client ingest.
-- [`app/core/`](app/core/): konfigurasi (`get_settings()`) serta hashing password dan JWT.
+- [`app/core/`](app/core/): konfigurasi (`get_settings()`), hashing password, JWT, dan penyensoran kredensial pada URL sumber video.
 - [`app/db/`](app/db/): base ORM dan pembuatan engine/session async.
 - [`app/models/`](app/models/): model ORM User, Camera, CrowdRecord, Prediction, dan enum status.
 - [`alembic/`](alembic/): environment dan file migrasi skema.

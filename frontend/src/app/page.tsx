@@ -16,12 +16,11 @@ export default function Home() {
     >
       <h1 style={{ fontSize: "2rem" }}>CrowdCast</h1>
       <p style={{ maxWidth: "40rem", color: "var(--purple-200)" }}>
-        Kerangka awal antarmuka web untuk pemantauan keramaian berbasis Computer
-        Vision dan AI. Integrasi dashboard, autentikasi, dan streaming video akan
-        ditambahkan secara bertahap.
+        Antarmuka web untuk pemantauan keramaian berbasis Computer Vision dan AI.
+        Masuk dengan akun operator atau administrator untuk membuka dashboard.
       </p>
       <Link href="/dashboard" style={{ color: "var(--purple-400)" }}>
-        Buka Dashboard Live Monitoring
+        Masuk ke Dashboard Live Monitoring
       </Link>
     </main>
   );
