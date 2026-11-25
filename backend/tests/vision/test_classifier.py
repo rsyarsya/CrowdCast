@@ -1,6 +1,11 @@
 import pytest
 
-from app.services.vision.classifier import HysteresisClassifier, StatusThresholds, classify
+from app.services.vision.classifier import (
+    HysteresisClassifier,
+    StatusThresholds,
+    classify,
+    thresholds_from_percentiles,
+)
 
 TH = StatusThresholds(normal_from=10, ramai_from=30, margin=3)
 
@@ -47,3 +52,31 @@ def test_zero_margin_behaves_like_classify():
 def test_invalid_thresholds_rejected(normal_from, ramai_from, margin):
     with pytest.raises(ValueError):
         StatusThresholds(normal_from, ramai_from, margin)
+
+
+def test_dwell_ignores_short_peaks():
+    clf = HysteresisClassifier(StatusThresholds(10, 30), dwell_s=30)
+    assert clf.update(20, t=0) == "Normal"
+    assert clf.update(35, t=5) == "Normal"  # Ramai proposed, not long enough
+    assert clf.update(20, t=10) == "Normal"  # peak over, pending reset
+    assert clf.update(35, t=20) == "Normal"
+    assert clf.update(35, t=49) == "Normal"
+    assert clf.update(35, t=50) == "Ramai"  # proposed for 30 s
+
+
+def test_dwell_requires_timestamp():
+    clf = HysteresisClassifier(StatusThresholds(10, 30), dwell_s=5)
+    clf.update(20, t=0)
+    with pytest.raises(ValueError):
+        clf.update(35)
+
+
+def test_thresholds_from_percentiles():
+    counts = list(range(0, 41))  # 0..40 uniformly
+    th = thresholds_from_percentiles(counts, 25, 75, margin=2)
+    assert (th.normal_from, th.ramai_from, th.margin) == (10, 30, 2)
+
+
+def test_thresholds_from_percentiles_shrinks_margin_for_narrow_data():
+    th = thresholds_from_percentiles([5, 5, 6, 6, 7, 7, 8, 8], margin=3)
+    assert th.margin < th.ramai_from - th.normal_from
