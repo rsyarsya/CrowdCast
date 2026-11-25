@@ -54,6 +54,25 @@ class MonitoringRecordOut(BaseModel):
         )
 
 
+class LiveStateOut(BaseModel):
+    """Current count and status from the vision worker (not stored in history).
+
+    `crowd_status` uses the dwell time, so it changes less often than the
+    per-minute records. `is_stale` is true when the worker stopped sending.
+    """
+
+    camera_id: str
+    timestamp: datetime
+    people_count: int
+    smoothed_count: float
+    crowd_status: CrowdStatus
+    is_stale: bool
+
+    @field_serializer("timestamp")
+    def serialize_timestamp(self, value: datetime) -> str:
+        return to_local_time(value).isoformat()
+
+
 class PredictionOut(BaseModel):
     camera_id: str
     timestamp: datetime
