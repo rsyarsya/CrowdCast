@@ -1,10 +1,10 @@
-"""Phase 2: stable counting with ROI, rolling median smoothing, and 1-minute records.
+"""Stable counting with ROI, rolling median smoothing, and 1-minute records.
 
 Run from the backend folder:
     .\\.venv\\Scripts\\python.exe experiments\\phase2_counting.py mall
     .\\.venv\\Scripts\\python.exe experiments\\phase2_counting.py video --camera kabukicho --start-minute 360 --minutes 30
 
-`mall`  : uses the per-frame counts from Phase 1 and measures whether rolling
+`mall`  : uses the per-frame counts from phase1_detect.py and measures whether rolling
           median smoothing changes the error against the ground truth.
 `video` : detects people at a fixed rate (default 2 fps) on a segment of the
           long video, runs app.services.vision.CountingPipeline, and writes
@@ -93,7 +93,7 @@ def detect_samples(args: argparse.Namespace) -> tuple[list[tuple[int, list[Box]]
 
 
 def tertile_thresholds(values: pd.Series) -> StatusThresholds:
-    """Provisional thresholds: lower/upper third of the per-minute counts (PROPOSED, decided in Phase 3)."""
+    """Provisional thresholds: lower/upper third of the per-minute counts (PROPOSED, final values are decided separately)."""
     low, high = np.percentile(values, [33.3, 66.7])
     normal_from = max(1.0, round(low))
     ramai_from = max(normal_from + 2, round(high))
@@ -184,7 +184,7 @@ def main() -> None:
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     mall = sub.add_parser("mall")
-    mall.add_argument("--config", default="yolo11n_960_tiles2x2_conf0.15", help="Phase 1 config tag")
+    mall.add_argument("--config", default="yolo11n_960_tiles2x2_conf0.15", help="Config tag from phase1_detect.py")
     mall.add_argument("--windows", nargs="+", type=float, default=[1, 2, 3, 5])
     mall.add_argument("--frame-interval", type=float, default=0.5, help="Seconds between Mall frames (assumed)")
 

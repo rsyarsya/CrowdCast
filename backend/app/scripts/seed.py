@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 SIMULATION_FILE = BACKEND_DIR.parent / "docs" / "data" / "monitoring-simulation.json"
 
 # Placeholder thresholds consistent with the simulation data (0 Sepi, 18 Normal,
-# 37 Ramai). Final values follow the threshold decision in the AI phase.
+# 37 Ramai). Final values come from the per-camera threshold decision.
 DEMO_CAMERA = {
     "code": "CAM-01",
     "name": "Kamera Lobi",
@@ -38,7 +38,7 @@ DEMO_CAMERA = {
 
 # Simulated predictions (horizon minutes -> count, status) made at the time of
 # the last simulated observation. The 15-minute value matches the frontend mock.
-# Replaced by real forecasts in the prediction phase.
+# Replaced once real forecasts are available.
 SIMULATED_PREDICTIONS = {
     5: (40, CrowdStatus.RAMAI),
     15: (45, CrowdStatus.RAMAI),

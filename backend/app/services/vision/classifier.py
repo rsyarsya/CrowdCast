@@ -2,7 +2,7 @@
 
 This is rule-based business logic on top of the model output, not deep learning.
 The threshold values are configuration per camera; the final numbers are
-decided in Phase 3 from observed data or the area capacity.
+decided per camera from observed data or the area capacity.
 """
 
 from __future__ import annotations

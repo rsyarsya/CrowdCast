@@ -1,7 +1,7 @@
 """Timestamps for frames of a recorded video.
 
 `dataset` mode: real time of the recording (video start time + frame offset).
-    Used to build the time series for forecasting in Phase 5.
+    Used to build the time series for forecasting.
 `replay` mode: the video plays as if it were a live CCTV camera, so the time is
     "now" when processing started + frame offset. Used for the dashboard demo.
 """

@@ -68,7 +68,7 @@ def main() -> int:
         check_data(),
     ]
     ready = all(results)
-    print("\nReady for Phase 1." if ready else "\nNot ready yet: fix the items above.")
+    print("\nReady for experiments." if ready else "\nNot ready yet: fix the items above.")
     return 0 if ready else 1
 
 

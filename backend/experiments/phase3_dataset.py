@@ -1,4 +1,4 @@
-"""Phase 3: build the full-recording dataset and derive crowd status thresholds.
+"""Build the full-recording dataset and derive crowd status thresholds.
 
 Run from the backend folder:
     .\\.venv\\Scripts\\python.exe experiments\\phase3_dataset.py extract --chunk 0
@@ -9,7 +9,7 @@ Run from the backend folder:
                       Finished chunks are skipped, so a crash only loses one chunk.
                       Run every chunk (see `extract --list`) before `build`.
 `build`             : runs CountingPipeline over all saved detections (no GPU),
-                      writes the per-minute dataset for phase 5, derives
+                      writes the per-minute dataset for forecasting, derives
                       thresholds from percentiles, and compares status flicker
                       with and without margin and dwell time.
 """
