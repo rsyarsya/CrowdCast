@@ -48,11 +48,13 @@ class Settings(BaseSettings):
     # Timestamps are stored in UTC and serialized by the API in this zone.
     TIMEZONE: str = "Asia/Jakarta"
 
-    # AI and video
-    # The vision worker aggregates counts and stores one CrowdRecord per interval.
-    CROWD_RECORD_INTERVAL_SECONDS: int = 10
-    DEFAULT_YOLO_MODEL: str = "yolov8n.pt"
-    DEVICE: str = ""
+    # Vision worker
+    # Shared secret the worker sends in the X-Worker-Key header. When unset, the
+    # ingest endpoints refuse every request.
+    WORKER_API_KEY: SecretStr | None = None
+    # Live state older than this is reported as stale (worker stopped or lagging).
+    LIVE_STALE_SECONDS: int = 15
+    # Video file used by the seed script for the simulated demo camera.
     VIDEO_SAMPLE_PATH: str = "data/videos/sample.mp4"
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")

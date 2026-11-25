@@ -8,6 +8,7 @@ from app.api import health
 from app.api.v1 import api_router
 from app.core.config import get_settings
 from app.db.session import create_engine, create_sessionmaker
+from app.services.live import LiveHub
 
 
 @asynccontextmanager
@@ -16,6 +17,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     engine = create_engine(get_settings())
     app.state.engine = engine
     app.state.sessionmaker = create_sessionmaker(engine)
+    app.state.live_hub = LiveHub()
     try:
         yield
     finally:
