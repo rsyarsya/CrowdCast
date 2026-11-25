@@ -1,0 +1,23 @@
+.message {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 40rem;
+  margin: 2rem auto;
+  padding: 1.5rem;
+  background: var(--dark-800);
+  border: 1px solid var(--slate-600);
+  border-radius: 0.75rem;
+}
+
+.title {
+  font-size: 0.85rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--purple-200);
+}
+
+.text {
+  margin: 0;
+  color: var(--cyan-100);
+}
