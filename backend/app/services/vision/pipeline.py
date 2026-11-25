@@ -24,7 +24,7 @@ class CountingPipeline:
         anchor: AnchorMode = "foot",
         smoothing_window_s: float = 5.0,
         interval_s: int = 60,
-        status_dwell_s: float = 0.0,
+        status_dwell_s: float = 30.0,
     ) -> None:
         self.roi = roi
         self.anchor = anchor

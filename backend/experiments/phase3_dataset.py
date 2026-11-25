@@ -153,9 +153,12 @@ def build(args: argparse.Namespace) -> None:
           f"Ramai from {th.ramai_from:g}, margin {th.margin:g}")
 
     variants = {
-        "no margin, no dwell": (StatusThresholds(th.normal_from, th.ramai_from, 0), 0),
-        f"margin {th.margin:g}": (th, 0),
+        f"margin {th.margin:g}, no dwell": (th, 0),
         f"margin {th.margin:g} + dwell {args.dwell:g}s": (th, args.dwell),
+        f"margin 2 + dwell {args.dwell:g}s (rejected)": (
+            StatusThresholds(th.normal_from, th.ramai_from, min(2, th.normal_from - 1, th.ramai_from - th.normal_from - 1)),
+            args.dwell,
+        ),
     }
     rows = []
     for name, (variant, dwell) in variants.items():
@@ -231,7 +234,7 @@ def main() -> None:
     bld.add_argument("--window", type=float, default=5, help="Rolling median window in seconds")
     bld.add_argument("--low-pct", type=float, default=25)
     bld.add_argument("--high-pct", type=float, default=75)
-    bld.add_argument("--margin", type=float, default=2)
+    bld.add_argument("--margin", type=float, default=0)
     bld.add_argument("--dwell", type=float, default=30)
 
     for p in (ext, bld):

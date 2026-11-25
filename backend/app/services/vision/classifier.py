@@ -47,7 +47,7 @@ def classify(count: float, th: StatusThresholds) -> CrowdStatus:
 
 
 def thresholds_from_percentiles(
-    counts: Sequence[float], low_pct: float = 25, high_pct: float = 75, margin: float = 2
+    counts: Sequence[float], low_pct: float = 25, high_pct: float = 75, margin: float = 0
 ) -> StatusThresholds:
     """Derive thresholds from observed per-minute counts of one camera.
 
