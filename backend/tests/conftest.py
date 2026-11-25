@@ -19,7 +19,9 @@ os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 os.environ.setdefault("SECRET_KEY", "test-secret-key-not-for-production")
 
 from app.core.config import BACKEND_DIR, get_settings  # noqa: E402
+from app.core.security import create_access_token, get_password_hash  # noqa: E402
 from app.main import create_app  # noqa: E402
+from app.models import User, UserRole  # noqa: E402
 
 TABLES = "users, cameras, crowd_records, predictions"
 
@@ -64,3 +66,48 @@ def client() -> Iterator[TestClient]:
     with TestClient(create_app()) as test_client:
         yield test_client
     get_settings.cache_clear()
+
+
+TEST_PASSWORD = "rahasia-123"
+
+
+async def create_user(
+    session: AsyncSession,
+    email: str,
+    role: UserRole = UserRole.OPERATOR,
+    is_active: bool = True,
+) -> User:
+    user = User(
+        email=email,
+        name=email.split("@")[0].title(),
+        hashed_password=get_password_hash(TEST_PASSWORD),
+        role=role,
+        is_active=is_active,
+    )
+    session.add(user)
+    await session.commit()
+    return user
+
+
+def bearer(user: User) -> dict[str, str]:
+    return {"Authorization": f"Bearer {create_access_token(user.id, user.role.value)}"}
+
+
+@pytest.fixture
+async def operator_user(db_session: AsyncSession) -> User:
+    return await create_user(db_session, "operator@crowdcast.test")
+
+
+@pytest.fixture
+async def admin_user(db_session: AsyncSession) -> User:
+    return await create_user(db_session, "admin@crowdcast.test", UserRole.ADMIN)
+
+
+@pytest.fixture
+def operator_headers(operator_user: User) -> dict[str, str]:
+    return bearer(operator_user)
+
+
+@pytest.fixture
+def admin_headers(admin_user: User) -> dict[str, str]:
+    return bearer(admin_user)

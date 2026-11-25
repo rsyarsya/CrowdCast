@@ -126,7 +126,8 @@ async def seed_admin(session: AsyncSession, settings: Settings) -> bool:
     if not email or not password:
         logger.warning("FIRST_SUPERUSER_EMAIL/PASSWORD not set; skipping admin.")
         return False
-    if await session.scalar(select(User.id).where(User.email == email)):
+    email = email.lower()
+    if await session.scalar(select(User.id).where(func.lower(User.email) == email)):
         return False
     session.add(
         User(

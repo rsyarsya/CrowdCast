@@ -33,7 +33,8 @@ class Settings(BaseSettings):
     # Security
     SECRET_KEY: SecretStr
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24
+    # One operator shift; users log in again afterwards (no refresh token).
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 8
 
     # Initial administrator; only required by the seed script.
     FIRST_SUPERUSER_EMAIL: str | None = None
