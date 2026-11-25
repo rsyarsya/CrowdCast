@@ -190,6 +190,18 @@ Worker memutar video rekaman seolah CCTV live, menjalankan YOLO (`yolo11n`, imgs
 
 4. Periksa `http://localhost:8000/api/v1/cameras/CAM-02/live` dan buka `http://localhost:8000/api/v1/cameras/CAM-02/stream` di browser.
 
+### Prediksi 5/15/30 Menit
+
+Setiap record menit selesai, worker memprediksi jumlah orang 5, 15, dan 30 menit ke depan lalu mengirimnya ke `POST /ingest/.../predictions`; hasilnya muncul di `GET /cameras/{camera_id}/predictions/latest` dengan `is_simulation: false`. Saat start, worker memuat riwayat terbaru dari API. Celah lebih dari 5 menit membuat riwayat dimulai ulang.
+
+Model dipilih dengan eksperimen yang membandingkan naive, moving average, regresi linear (lag 30 menit), dan GRU kecil pada dataset per menit (split waktu 60/20/20):
+
+```powershell
+.\.venv\Scripts\python.exe experiments\phase5_forecast.py
+```
+
+Model dengan MAE validasi terendah disimpan ke `data/models/forecast/<camera>.json` atau `.pt` (tidak di-commit) dan otomatis dipakai worker. Tanpa file itu worker memakai moving average 10 menit. Opsi worker: `--forecast-model PATH` atau `--no-forecast`.
+
 Status live dan frame disimpan di memori proses API, jadi API harus berjalan sebagai **satu proses** (jangan memakai `--workers` > 1) dan status hilang saat API restart. Riwayat tetap aman di database. Worker memakai sekitar 2,5 GB RAM dan GPU; dengan RAM 8 GB, tutup aplikasi berat saat menjalankan Docker, API, worker, dan frontend bersamaan.
 
 ## Pengujian
