@@ -5,3 +5,5 @@ sqlalchemy[asyncio]==2.1.8
 asyncpg==0.32.0
 pyjwt==2.15.1
 pwdlib[bcrypt]==0.4.2
+alembic==1.20.1
+tzdata==2026.6

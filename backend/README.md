@@ -1,6 +1,6 @@
 # CrowdCast Backend
 
-API CrowdCast menggunakan **Python 3.12**, **FastAPI**, dan **SQLAlchemy async** dengan PostgreSQL. Aplikasi aktif menyediakan `GET /health` (liveness), `GET /health/ready` (readiness, memeriksa database), dan dokumentasi OpenAPI. Model data, autentikasi endpoint, dan pemrosesan video/AI belum terhubung ke aplikasi.
+API CrowdCast menggunakan **Python 3.12**, **FastAPI**, dan **SQLAlchemy async** dengan PostgreSQL. Aplikasi aktif menyediakan `GET /health` (liveness), `GET /health/ready` (readiness, memeriksa database), dan dokumentasi OpenAPI. Skema database (User, Camera, CrowdRecord, Prediction) dikelola dengan Alembic. Endpoint monitoring, autentikasi, dan pemrosesan video/AI belum terhubung ke aplikasi.
 
 ## Prasyarat
 
@@ -84,6 +84,26 @@ Copy-Item .env.example .env
 
 Jangan commit `.env`.
 
+## Migrasi dan Data Awal
+
+Dari folder `backend`, terapkan skema terbaru ke database pada `.env`, lalu isi data awal:
+
+```powershell
+.\.venv\Scripts\python.exe -m alembic upgrade head
+.\.venv\Scripts\python.exe -m app.scripts.seed
+```
+
+Seed membuat kamera demo `CAM-01` (Lobi Gedung A), memuat tiga pengamatan dari [`monitoring-simulation.json`](../docs/data/monitoring-simulation.json), dan membuat akun administrator dari `FIRST_SUPERUSER_EMAIL`/`FIRST_SUPERUSER_PASSWORD` bila keduanya diisi. Seed aman dijalankan berulang. Threshold kamera demo (Normal >= 10, Ramai >= 30) masih placeholder.
+
+Setelah mengubah model di `app/models/`, buat migrasi baru lalu periksa isinya sebelum commit:
+
+```powershell
+.\.venv\Scripts\python.exe -m alembic revision --autogenerate -m "describe the change"
+.\.venv\Scripts\python.exe -m alembic upgrade head
+```
+
+Waktu disimpan sebagai `timestamptz` (UTC) dan akan dikirim API dalam zona `TIMEZONE` (default `Asia/Jakarta`). Status keramaian disimpan sebagai teks `Sepi`/`Normal`/`Ramai` yang dijaga CHECK constraint.
+
 ## Menjalankan Server
 
 1. Dari folder `backend`, jalankan:
@@ -104,7 +124,7 @@ Pastikan container database berjalan, lalu dari folder `backend` jalankan:
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Test selalu memakai database `crowdcast_test` (lihat [`tests/conftest.py`](tests/conftest.py)), bukan database pengembangan pada `.env`. URL test dapat diganti melalui `TEST_DATABASE_URL`. Job `backend-test` pada [CI repository](../.github/workflows/main.yml) menjalankan PostgreSQL 17 sebagai service container lalu menjalankan pytest yang sama.
+Test selalu memakai database `crowdcast_test` (lihat [`tests/conftest.py`](tests/conftest.py)), bukan database pengembangan pada `.env`. Pytest menjalankan `alembic upgrade head` pada database test di awal sesi, mengosongkan tabel setelah setiap test database, dan memeriksa bahwa model selalu sesuai migrasi terakhir. URL test dapat diganti melalui `TEST_DATABASE_URL`. Job `backend-test` pada [CI repository](../.github/workflows/main.yml) menjalankan PostgreSQL 17 sebagai service container lalu menjalankan pytest yang sama.
 
 ## Organisasi Kode
 
@@ -112,7 +132,9 @@ Test selalu memakai database `crowdcast_test` (lihat [`tests/conftest.py`](tests
 - [`app/api/`](app/api/): router (`health.py`) dan dependency bersama (`deps.py`, session database per request).
 - [`app/core/`](app/core/): konfigurasi (`get_settings()`) serta hashing password dan JWT.
 - [`app/db/`](app/db/): base ORM dan pembuatan engine/session async.
-- [`app/models/`](app/models/): model ORM; migrasi Alembic ditambahkan pada fase model data.
+- [`app/models/`](app/models/): model ORM User, Camera, CrowdRecord, Prediction, dan enum status.
+- [`alembic/`](alembic/): environment dan file migrasi skema.
+- [`app/scripts/seed.py`](app/scripts/seed.py): data awal kamera demo, riwayat simulasi, dan administrator.
 - [`docker/postgres-init/`](docker/postgres-init/): script inisialisasi container PostgreSQL lokal.
 - [`tests/`](tests/): pengujian backend.
 - `requirements.txt`, `requirements-dev.txt`, `requirements-ai.txt`: dependency runtime, pengembangan, dan eksperimen AI.

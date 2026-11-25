@@ -45,7 +45,12 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
     ]
 
+    # Timestamps are stored in UTC and serialized by the API in this zone.
+    TIMEZONE: str = "Asia/Jakarta"
+
     # AI and video
+    # The vision worker aggregates counts and stores one CrowdRecord per interval.
+    CROWD_RECORD_INTERVAL_SECONDS: int = 10
     DEFAULT_YOLO_MODEL: str = "yolov8n.pt"
     DEVICE: str = ""
     VIDEO_SAMPLE_PATH: str = "data/videos/sample.mp4"
