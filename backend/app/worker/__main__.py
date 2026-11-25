@@ -62,6 +62,8 @@ def resolve_source(source: str) -> Path:
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    # httpx logs every request at INFO; the worker sends about 12 per second.
+    logging.getLogger("httpx").setLevel(logging.WARNING)
     args = parse_args()
     settings = WorkerSettings()
 
