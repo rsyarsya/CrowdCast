@@ -24,12 +24,13 @@ class CountingPipeline:
         anchor: AnchorMode = "foot",
         smoothing_window_s: float = 5.0,
         interval_s: int = 60,
+        status_dwell_s: float = 30.0,
     ) -> None:
         self.roi = roi
         self.anchor = anchor
         self.smoother = RollingMedian(smoothing_window_s)
         self.aggregator = IntervalAggregator(interval_s)
-        self.live_classifier = HysteresisClassifier(thresholds)
+        self.live_classifier = HysteresisClassifier(thresholds, dwell_s=status_dwell_s)
         self.thresholds = thresholds
 
     def process(
@@ -40,8 +41,9 @@ class CountingPipeline:
         Returns the live state and, when an interval just closed, its record.
         """
         raw = count_in_roi(boxes, self.roi, frame_w, frame_h, self.anchor)
-        smoothed = self.smoother.update(timestamp.timestamp(), raw)
-        status = self.live_classifier.update(smoothed)
+        t = timestamp.timestamp()
+        smoothed = self.smoother.update(t, raw)
+        status = self.live_classifier.update(smoothed, t)
         record = self.aggregator.add(timestamp, smoothed)
         return LiveState(timestamp, raw, smoothed, status), record
 

@@ -1,4 +1,4 @@
-"""Phase 1: offline person detection experiments.
+"""Offline person detection experiments.
 
 Subcommands (run from the backend folder):
     .\\.venv\\Scripts\\python.exe experiments\\phase1_detect.py mall
