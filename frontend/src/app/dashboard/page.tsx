@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+
 import CameraInfo from "@/components/CameraInfo";
 import CrowdStatusCard from "@/components/CrowdStatusCard";
 import DashboardMessage from "@/components/DashboardMessage";
@@ -5,6 +7,7 @@ import DashboardShell from "@/components/DashboardShell";
 import PeopleCountCard from "@/components/PeopleCountCard";
 import PredictionCard from "@/components/PredictionCard";
 import VideoPanel from "@/components/VideoPanel";
+import { getCurrentUser } from "@/lib/auth";
 import {
   defaultCameraId,
   getLatestMonitoring,
@@ -24,19 +27,29 @@ export const dynamic = "force-dynamic";
  * below are pure props-in. Layout follows the visual-direction hierarchy: video
  * dominant, then people count, crowd status, camera identity, and prediction.
  */
+function settle<T>(promise: Promise<T>): Promise<PromiseSettledResult<T>> {
+  return promise.then(
+    (value) => ({ status: "fulfilled", value }),
+    (reason: unknown) => ({ status: "rejected", reason }),
+  );
+}
+
 export default async function DashboardPage() {
   const cameraId = defaultCameraId();
-  const [latestResult, predictionsResult] = await Promise.allSettled([
-    getLatestMonitoring(cameraId),
-    getPredictions(cameraId),
+  const [latestResult, predictionsResult, user] = await Promise.all([
+    settle(getLatestMonitoring(cameraId)),
+    settle(getPredictions(cameraId)),
+    getCurrentUser(), // never throws; null in mock mode or without a session
   ]);
 
   if (latestResult.status === "rejected") {
     const error: unknown = latestResult.reason;
     // Unknown failures go to the route error boundary (error.tsx).
     if (!(error instanceof MonitoringApiError)) throw error;
+    // Expired or revoked token: the proxy only checks that a cookie exists.
+    if (error.code === "unauthorized") redirect("/login?expired=1");
     return (
-      <DashboardShell>
+      <DashboardShell user={user}>
         <DashboardMessage code={error.code} cameraId={cameraId} />
       </DashboardShell>
     );
@@ -48,7 +61,7 @@ export default async function DashboardPage() {
     predictionsResult.status === "fulfilled" ? predictionsResult.value : [];
 
   return (
-    <DashboardShell>
+    <DashboardShell user={user}>
       <div className={styles.layout}>
         <div className={styles.video}>
           <VideoPanel />

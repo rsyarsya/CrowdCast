@@ -1,6 +1,6 @@
 # CrowdCast Frontend
 
-Scaffold antarmuka CrowdCast menggunakan **Next.js 16 (App Router)**, **React**, dan **TypeScript**. Aplikasi aktif menampilkan halaman awal, menyediakan `GET /health`, dan dashboard `/dashboard` yang membaca data monitoring serta prediksi dari API backend. Autentikasi, halaman History, auto-refresh, dan streaming video belum diimplementasikan.
+Scaffold antarmuka CrowdCast menggunakan **Next.js 16 (App Router)**, **React**, dan **TypeScript**. Aplikasi aktif menampilkan halaman awal, menyediakan `GET /health`, halaman login `/login`, dan dashboard `/dashboard` yang membaca data monitoring serta prediksi dari API backend. Halaman History, UI manajemen kamera/user, auto-refresh, dan streaming video belum diimplementasikan.
 
 ## Prasyarat
 
@@ -39,6 +39,18 @@ Copy-Item .env.example .env.local
 
 Jangan menimpa konfigurasi lokal yang sudah ada atau commit `.env.local`. Variabel `NEXT_PUBLIC_*` tersedia untuk browser sehingga hanya boleh berisi konfigurasi publik, bukan secret.
 
+## Login dan Sesi
+
+- `/login` mengirim email dan password ke `POST /api/v1/auth/login` lewat Server Action, lalu menyimpan token di cookie `crowdcast_token` (httpOnly, `SameSite=Lax`, berlaku sesuai `expires_in` dari backend, default 8 jam). JavaScript browser tidak bisa membaca cookie ini.
+- Server Component membaca cookie tersebut dan mengirim header `Authorization: Bearer` ke backend.
+- [`src/proxy.ts`](src/proxy.ts) mengarahkan `/dashboard` ke `/login` bila cookie tidak ada. Token yang kedaluwarsa atau akun yang dinonaktifkan terdeteksi saat backend menjawab 401, lalu pengguna diarahkan ke `/login?expired=1`.
+- Tombol **Keluar** di header dashboard menghapus cookie.
+- Mode mock tidak memerlukan login.
+
+Di production (`npm run start`), cookie diberi atribut `Secure`. Browser menerimanya di `http://localhost`, tetapi akses lewat HTTP biasa ke alamat lain (misalnya IP LAN) memerlukan HTTPS.
+
+Akun dibuat oleh admin lewat backend (lihat [panduan backend](../backend/README.md)); UI manajemen akun belum tersedia.
+
 ## Menjalankan Server
 
 1. Dari folder `frontend`, jalankan:
@@ -49,7 +61,7 @@ Jangan menimpa konfigurasi lokal yang sudah ada atau commit `.env.local`. Variab
 
 2. Buka aplikasi pada `http://localhost:3000`, dashboard pada `http://localhost:3000/dashboard`, atau health pada `http://localhost:3000/health`.
 
-Dashboard membutuhkan backend yang berjalan dan sudah di-seed (lihat [panduan backend](../backend/README.md)). Bila backend tidak dapat dihubungi, dashboard menampilkan pesan, bukan halaman error. Dashboard dirender ulang setiap request, sehingga data terbaru muncul saat halaman di-refresh.
+Dashboard membutuhkan login serta backend yang berjalan dan sudah di-seed (lihat [panduan backend](../backend/README.md)). Bila backend tidak dapat dihubungi, dashboard menampilkan pesan, bukan halaman error. Dashboard dirender ulang setiap request, sehingga data terbaru muncul saat halaman di-refresh.
 
 Endpoint health menghasilkan HTTP 200 dan `{"status":"ok"}` untuk aplikasi frontend sendiri dan tidak memeriksa koneksi backend.
 
@@ -81,6 +93,9 @@ GitHub Pages CrowdCast menerbitkan dokumentasi dari `docs/`; aplikasi frontend b
 - [`src/app/`](src/app/): App Router, root layout, halaman awal, dashboard (beserta error boundary), global CSS, dan route health.
 - [`src/components/`](src/components/): komponen presentasional dashboard (props-in, tanpa fetching).
 - [`src/lib/monitoring/`](src/lib/monitoring/): tipe kontrak API, accessor data, dan data mock.
+- [`src/lib/auth/`](src/lib/auth/): login ke backend, user saat ini, dan pembacaan cookie sesi.
+- [`src/app/login/`](src/app/login/): halaman login serta Server Action login/logout.
+- [`src/proxy.ts`](src/proxy.ts): proteksi rute dashboard.
 - [`tests/`](tests/): test frontend yang tersedia.
 - `next.config.ts`, `tsconfig.json`, `eslint.config.mjs`, dan `vitest.config.ts`: konfigurasi build dan pemeriksaan.
 - `package.json` dan `package-lock.json`: skrip serta dependency frontend.
