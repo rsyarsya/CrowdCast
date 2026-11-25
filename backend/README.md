@@ -1,6 +1,6 @@
 # CrowdCast Backend
 
-API CrowdCast menggunakan **Python 3.12**, **FastAPI**, dan **SQLAlchemy async** dengan PostgreSQL. Aplikasi aktif menyediakan `GET /health` (liveness), `GET /health/ready` (readiness, memeriksa database), dan dokumentasi OpenAPI. Skema database (User, Camera, CrowdRecord, Prediction) dikelola dengan Alembic. Endpoint monitoring, autentikasi, dan pemrosesan video/AI belum terhubung ke aplikasi.
+API CrowdCast menggunakan **Python 3.12**, **FastAPI**, dan **SQLAlchemy async** dengan PostgreSQL. Aplikasi aktif menyediakan `GET /health` (liveness), `GET /health/ready` (readiness, memeriksa database), dan dokumentasi OpenAPI. Skema database (User, Camera, CrowdRecord, Prediction) dikelola dengan Alembic. Endpoint baca monitoring dan prediksi tersedia di `/api/v1`. Autentikasi dan pemrosesan video/AI belum terhubung ke aplikasi.
 
 ## Prasyarat
 
@@ -93,7 +93,7 @@ Dari folder `backend`, terapkan skema terbaru ke database pada `.env`, lalu isi 
 .\.venv\Scripts\python.exe -m app.scripts.seed
 ```
 
-Seed membuat kamera demo `CAM-01` (Lobi Gedung A), memuat tiga pengamatan dari [`monitoring-simulation.json`](../docs/data/monitoring-simulation.json), dan membuat akun administrator dari `FIRST_SUPERUSER_EMAIL`/`FIRST_SUPERUSER_PASSWORD` bila keduanya diisi. Seed aman dijalankan berulang. Threshold kamera demo (Normal >= 10, Ramai >= 30) masih placeholder.
+Seed membuat kamera demo `CAM-01` (Lobi Gedung A), memuat tiga pengamatan dari [`monitoring-simulation.json`](../docs/data/monitoring-simulation.json), menambahkan tiga prediksi simulasi (`is_simulation: true`), dan membuat akun administrator dari `FIRST_SUPERUSER_EMAIL`/`FIRST_SUPERUSER_PASSWORD` bila keduanya diisi. Seed aman dijalankan berulang. Threshold kamera demo (Normal >= 10, Ramai >= 30) masih placeholder.
 
 Setelah mengubah model di `app/models/`, buat migrasi baru lalu periksa isinya sebelum commit:
 
@@ -116,6 +116,19 @@ Waktu disimpan sebagai `timestamptz` (UTC) dan akan dikirim API dalam zona `TIME
 
 Mode `--reload` digunakan untuk pengembangan lokal. `/health` hanya menandakan proses berjalan dan tidak menyentuh database. `/health/ready` menjalankan `SELECT 1`: HTTP 200 bila database menjawab, HTTP 503 bila tidak.
 
+## Endpoint API
+
+Swagger UI (`/docs`) adalah sumber kebenaran kontrak. Ringkasan endpoint `/api/v1` saat ini:
+
+| Endpoint | Respons |
+| --- | --- |
+| `GET /cameras` | Daftar kamera: `camera_id`, `name`, `location`, `is_active`. Sumber video tidak pernah dikirim. |
+| `GET /cameras/{camera_id}/monitoring/latest` | Pengamatan terbaru, bentuk sama dengan `MonitoringRecord` di frontend. |
+| `GET /cameras/{camera_id}/monitoring?start=&end=&limit=` | Riwayat urut waktu naik. Tanpa `start`, mengembalikan `limit` data terbaru (default 500, maksimal 2000). `start`/`end` wajib memakai offset zona waktu. |
+| `GET /cameras/{camera_id}/predictions/latest` | Prediksi terbaru per horizon (5/15/30 menit), termasuk `target_time` dan `is_simulation`. |
+
+`camera_id` adalah kode publik kamera (misalnya `CAM-01`). Waktu dikirim dalam zona `TIMEZONE` (default WIB, `+07:00`). Error 404 memakai kode stabil pada `detail`: `camera_not_found`, `no_monitoring_data`, atau `no_prediction`. Endpoint belum memerlukan login; autentikasi ditambahkan pada fase berikutnya.
+
 ## Pengujian
 
 Pastikan container database berjalan, lalu dari folder `backend` jalankan:
@@ -129,7 +142,9 @@ Test selalu memakai database `crowdcast_test` (lihat [`tests/conftest.py`](tests
 ## Organisasi Kode
 
 - [`app/main.py`](app/main.py): `create_app()`, CORS, dan lifespan yang membuat serta menutup engine database.
-- [`app/api/`](app/api/): router (`health.py`) dan dependency bersama (`deps.py`, session database per request).
+- [`app/api/`](app/api/): router health, router `/api/v1` (`v1/cameras.py`), dan dependency bersama (`deps.py`, session database per request).
+- [`app/schemas/`](app/schemas/): schema respons API, termasuk konversi waktu ke WIB.
+- [`app/services/`](app/services/): query monitoring (`monitoring.py`) dan pipeline vision (`vision/`).
 - [`app/core/`](app/core/): konfigurasi (`get_settings()`) serta hashing password dan JWT.
 - [`app/db/`](app/db/): base ORM dan pembuatan engine/session async.
 - [`app/models/`](app/models/): model ORM User, Camera, CrowdRecord, Prediction, dan enum status.

@@ -5,8 +5,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import CameraInfo from "@/components/CameraInfo";
 import CrowdStatusCard from "@/components/CrowdStatusCard";
 import PeopleCountCard from "@/components/PeopleCountCard";
+import DashboardMessage from "@/components/DashboardMessage";
 import PredictionCard from "@/components/PredictionCard";
 import VideoPanel from "@/components/VideoPanel";
+import { MOCK_PREDICTIONS } from "@/lib/monitoring/mock";
 
 afterEach(() => {
   cleanup();
@@ -47,13 +49,37 @@ describe("presentational components", () => {
     expect(screen.getByText("Lobi Gedung A")).toBeTruthy();
   });
 
-  it("PredictionCard shows the simulasi label", () => {
-    render(
-      <PredictionCard
-        prediction={{ predicted_count: 45, predicted_status: "Ramai" }}
-      />,
-    );
+  it("PredictionCard lists every horizon and labels simulated values", () => {
+    render(<PredictionCard predictions={MOCK_PREDICTIONS} />);
 
     expect(screen.getByText("simulasi")).toBeTruthy();
+    expect(screen.getByText("+5 menit")).toBeTruthy();
+    expect(screen.getByText("+15 menit")).toBeTruthy();
+    expect(screen.getByText("+30 menit")).toBeTruthy();
+  });
+
+  it("PredictionCard hides the simulasi label for model predictions", () => {
+    const predictions = MOCK_PREDICTIONS.map((p) => ({
+      ...p,
+      model_name: "moving_average",
+      is_simulation: false,
+    }));
+    render(<PredictionCard predictions={predictions} />);
+
+    expect(screen.queryByText("simulasi")).toBeNull();
+  });
+
+  it("PredictionCard shows an empty state without predictions", () => {
+    render(<PredictionCard predictions={[]} />);
+
+    expect(screen.getByText("Belum ada prediksi.")).toBeTruthy();
+  });
+
+  it("DashboardMessage explains a missing camera", () => {
+    render(<DashboardMessage code="camera_not_found" cameraId="CAM-09" />);
+
+    expect(screen.getByRole("alert").textContent).toContain(
+      "Kamera CAM-09 tidak ditemukan.",
+    );
   });
 });

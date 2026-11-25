@@ -24,8 +24,10 @@ async def test_seed_loads_simulation_and_is_idempotent(
     first = await seed(db_session, settings)
     second = await seed(db_session, settings)
 
-    assert (first.cameras, first.crowd_records, first.admin_created) == (1, 3, True)
-    assert (second.cameras, second.crowd_records, second.admin_created) == (1, 3, False)
+    assert (first.cameras, first.crowd_records, first.predictions) == (1, 3, 3)
+    assert first.admin_created is True
+    assert (second.cameras, second.crowd_records, second.predictions) == (1, 3, 3)
+    assert second.admin_created is False
 
     statuses = (
         await db_session.scalars(

@@ -1,4 +1,4 @@
-"""Seed the database with the demo camera, simulated history, and an admin.
+"""Seed the demo camera, simulated history and predictions, and an admin.
 
 Run from the backend folder after `alembic upgrade head`:
     .\\.venv\\Scripts\\python.exe -m app.scripts.seed
@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import BACKEND_DIR, Settings, get_settings
 from app.core.security import get_password_hash
 from app.db.session import create_engine, create_sessionmaker
-from app.models import Camera, CrowdRecord, CrowdStatus, User, UserRole
+from app.models import Camera, CrowdRecord, CrowdStatus, Prediction, User, UserRole
 
 logger = logging.getLogger(__name__)
 
@@ -36,11 +36,22 @@ DEMO_CAMERA = {
     "threshold_ramai": 30,
 }
 
+# Simulated predictions (horizon minutes -> count, status) made at the time of
+# the last simulated observation. The 15-minute value matches the frontend mock.
+# Replaced by real forecasts in the prediction phase.
+SIMULATED_PREDICTIONS = {
+    5: (40, CrowdStatus.RAMAI),
+    15: (45, CrowdStatus.RAMAI),
+    30: (28, CrowdStatus.NORMAL),
+}
+SIMULATION_MODEL_NAME = "simulation"
+
 
 @dataclass
 class SeedResult:
     cameras: int
     crowd_records: int
+    predictions: int
     admin_created: bool
 
 
@@ -78,6 +89,37 @@ async def seed_simulation_records(
     return result.rowcount or 0
 
 
+async def seed_simulated_predictions(session: AsyncSession, camera: Camera) -> int:
+    already_seeded = await session.scalar(
+        select(Prediction.id).where(
+            Prediction.camera_id == camera.id,
+            Prediction.model_name == SIMULATION_MODEL_NAME,
+        )
+    )
+    if already_seeded:
+        return 0
+    made_at = await session.scalar(
+        select(func.max(CrowdRecord.timestamp)).where(
+            CrowdRecord.camera_id == camera.id
+        )
+    )
+    if made_at is None:
+        return 0
+    session.add_all(
+        Prediction(
+            camera_id=camera.id,
+            timestamp=made_at,
+            horizon_minutes=horizon,
+            predicted_count=count,
+            predicted_status=status,
+            model_name=SIMULATION_MODEL_NAME,
+            is_simulation=True,
+        )
+        for horizon, (count, status) in SIMULATED_PREDICTIONS.items()
+    )
+    return len(SIMULATED_PREDICTIONS)
+
+
 async def seed_admin(session: AsyncSession, settings: Settings) -> bool:
     email = settings.FIRST_SUPERUSER_EMAIL
     password = settings.FIRST_SUPERUSER_PASSWORD
@@ -104,15 +146,23 @@ async def seed(
     inserted = await seed_simulation_records(
         session, {camera.code: camera}, simulation_file
     )
+    predictions = await seed_simulated_predictions(session, camera)
     admin_created = await seed_admin(session, settings)
     await session.commit()
-    logger.info("Inserted %d crowd records; admin created: %s", inserted, admin_created)
+    logger.info(
+        "Inserted %d crowd records and %d predictions; admin created: %s",
+        inserted,
+        predictions,
+        admin_created,
+    )
+
+    async def count(model: type) -> int:
+        return await session.scalar(select(func.count()).select_from(model)) or 0
+
     return SeedResult(
-        cameras=await session.scalar(select(func.count()).select_from(Camera)) or 0,
-        crowd_records=await session.scalar(
-            select(func.count()).select_from(CrowdRecord)
-        )
-        or 0,
+        cameras=await count(Camera),
+        crowd_records=await count(CrowdRecord),
+        predictions=await count(Prediction),
         admin_created=admin_created,
     )
 
@@ -127,7 +177,8 @@ async def main() -> None:
         await engine.dispose()
     print(
         f"Seed done: {result.cameras} camera(s), {result.crowd_records} crowd "
-        f"record(s), admin created: {result.admin_created}"
+        f"record(s), {result.predictions} prediction(s), "
+        f"admin created: {result.admin_created}"
     )
 
 

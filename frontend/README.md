@@ -1,6 +1,6 @@
 # CrowdCast Frontend
 
-Scaffold antarmuka CrowdCast menggunakan **Next.js 16 (App Router)**, **React**, dan **TypeScript**. Aplikasi aktif menampilkan halaman awal serta menyediakan `GET /health`. Dashboard monitoring, autentikasi, streaming video, dan konsumsi API backend belum diimplementasikan.
+Scaffold antarmuka CrowdCast menggunakan **Next.js 16 (App Router)**, **React**, dan **TypeScript**. Aplikasi aktif menampilkan halaman awal, menyediakan `GET /health`, dan dashboard `/dashboard` yang membaca data monitoring serta prediksi dari API backend. Autentikasi, halaman History, auto-refresh, dan streaming video belum diimplementasikan.
 
 ## Prasyarat
 
@@ -25,13 +25,17 @@ Gunakan `npm ci` untuk setup dan verifikasi yang dapat diulang. Saat sengaja men
 
 ## Konfigurasi Environment
 
-Scaffold belum menggunakan `NEXT_PUBLIC_API_BASE_URL`. [`.env.example`](.env.example) menyiapkan alamat backend lokal untuk integrasi berikutnya; `.env.local` belum diperlukan untuk halaman awal atau health.
-
-Saat integrasi API mulai dikerjakan, salin template hanya jika `.env.local` belum tersedia:
+Salin template hanya jika `.env.local` belum tersedia:
 
 ```powershell
 Copy-Item .env.example .env.local
 ```
+
+| Variabel | Default | Fungsi |
+| --- | --- | --- |
+| `NEXT_PUBLIC_API_BASE_URL` | `http://localhost:8000` | Alamat backend; dashboard memanggil `/api/v1` di alamat ini. |
+| `NEXT_PUBLIC_DEFAULT_CAMERA_ID` | `CAM-01` | Kamera yang ditampilkan dashboard. |
+| `NEXT_PUBLIC_MONITORING_SOURCE` | `api` | `mock` menampilkan data simulasi lokal tanpa backend, misalnya untuk demo UI. |
 
 Jangan menimpa konfigurasi lokal yang sudah ada atau commit `.env.local`. Variabel `NEXT_PUBLIC_*` tersedia untuk browser sehingga hanya boleh berisi konfigurasi publik, bukan secret.
 
@@ -43,9 +47,11 @@ Jangan menimpa konfigurasi lokal yang sudah ada atau commit `.env.local`. Variab
    npm run dev
    ```
 
-2. Buka aplikasi pada `http://localhost:3000` atau health pada `http://localhost:3000/health`.
+2. Buka aplikasi pada `http://localhost:3000`, dashboard pada `http://localhost:3000/dashboard`, atau health pada `http://localhost:3000/health`.
 
-Endpoint health menghasilkan HTTP 200 dan `{"status":"ok"}` untuk aplikasi frontend sendiri. Endpoint ini belum memeriksa koneksi backend.
+Dashboard membutuhkan backend yang berjalan dan sudah di-seed (lihat [panduan backend](../backend/README.md)). Bila backend tidak dapat dihubungi, dashboard menampilkan pesan, bukan halaman error. Dashboard dirender ulang setiap request, sehingga data terbaru muncul saat halaman di-refresh.
+
+Endpoint health menghasilkan HTTP 200 dan `{"status":"ok"}` untuk aplikasi frontend sendiri dan tidak memeriksa koneksi backend.
 
 ## Pengujian dan Pemeriksaan
 
@@ -58,7 +64,9 @@ npm run lint
 npm run build
 ```
 
-Vitest menggunakan environment Node dan alias `@` menuju `src` melalui [`vitest.config.ts`](vitest.config.ts). Test health memanggil route handler secara langsung; belum menguji navigasi browser atau integrasi antaraplikasi. Job `frontend-check` pada [CI repository](../.github/workflows/main.yml) menjalankan seluruh pemeriksaan tersebut setelah `npm ci`.
+Vitest menggunakan environment Node dan alias `@` menuju `src` melalui [`vitest.config.ts`](vitest.config.ts). Test accessor dan dashboard mengganti `fetch` dengan mock sehingga tidak membutuhkan backend; test ini memeriksa URL request, pemetaan kode error, serta tampilan saat backend mati atau prediksi belum ada.
+
+Bila npm global memakai `legacy-peer-deps=true`, peer dependency seperti `@testing-library/dom` tidak terpasang dan test komponen gagal. Jalankan `npm ci --legacy-peer-deps=false` untuk repository ini. Job `frontend-check` pada [CI repository](../.github/workflows/main.yml) menjalankan seluruh pemeriksaan tersebut setelah `npm ci`.
 
 Untuk menjalankan hasil build secara lokal, setelah build berhasil:
 
@@ -70,7 +78,9 @@ GitHub Pages CrowdCast menerbitkan dokumentasi dari `docs/`; aplikasi frontend b
 
 ## Organisasi Kode
 
-- [`src/app/`](src/app/): App Router, root layout, halaman awal, global CSS, dan route health.
+- [`src/app/`](src/app/): App Router, root layout, halaman awal, dashboard (beserta error boundary), global CSS, dan route health.
+- [`src/components/`](src/components/): komponen presentasional dashboard (props-in, tanpa fetching).
+- [`src/lib/monitoring/`](src/lib/monitoring/): tipe kontrak API, accessor data, dan data mock.
 - [`tests/`](tests/): test frontend yang tersedia.
 - `next.config.ts`, `tsconfig.json`, `eslint.config.mjs`, dan `vitest.config.ts`: konfigurasi build dan pemeriksaan.
 - `package.json` dan `package-lock.json`: skrip serta dependency frontend.
