@@ -6,6 +6,7 @@ Run from the backend folder after `alembic upgrade head`:
 Safe to run repeatedly: existing rows are left untouched.
 """
 
+import argparse
 import asyncio
 import json
 import logging
@@ -168,11 +169,16 @@ async def seed(
     )
 
 
-async def main() -> None:
+async def main(admin_only: bool) -> None:
     settings = get_settings()
     engine = create_engine(settings)
     try:
         async with create_sessionmaker(engine)() as session:
+            if admin_only:
+                created = await seed_admin(session, settings)
+                await session.commit()
+                print(f"Admin created: {created}")
+                return
             result = await seed(session, settings)
     finally:
         await engine.dispose()
@@ -184,5 +190,9 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Fill the database with demo data and the first admin.")
+    parser.add_argument(
+        "--admin-only", action="store_true", help="Only create the administrator (for production)"
+    )
     logging.basicConfig(level=logging.INFO)
-    asyncio.run(main())
+    asyncio.run(main(parser.parse_args().admin_only))
