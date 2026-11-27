@@ -129,7 +129,7 @@ Semua endpoint `/cameras` dan `/users` membutuhkan token. Alurnya:
 
 Di Swagger, klik tombol **Authorize**, isi email pada kolom `username` beserta password, lalu semua request dari Swagger otomatis membawa token. Akun administrator pertama dibuat oleh seed dari `FIRST_SUPERUSER_EMAIL`/`FIRST_SUPERUSER_PASSWORD`; akun lain dibuat admin lewat `POST /api/v1/users`.
 
-Role dibaca ulang dari database di setiap request, jadi perubahan role atau penonaktifan akun langsung berlaku walaupun token lama belum kedaluwarsa. Login yang gagal karena email tidak terdaftar, password salah, atau akun nonaktif selalu menjawab `401 invalid_credentials`, sehingga tidak membocorkan email mana yang terdaftar.
+Role dibaca ulang dari database di setiap request, jadi perubahan role atau penonaktifan akun langsung berlaku walaupun token lama belum kedaluwarsa. Login yang gagal karena email tidak terdaftar, password salah, atau akun nonaktif selalu menjawab `401 invalid_credentials`, sehingga tidak membocorkan email mana yang terdaftar. Setelah 5 kali gagal dalam 15 menit dari IP dan email yang sama, login ditolak dengan `429 too_many_attempts` dan header `Retry-After` (atur lewat `LOGIN_MAX_FAILURES` dan `LOGIN_WINDOW_SECONDS`). Login yang berhasil mereset hitungan.
 
 ### Monitoring (operator dan admin)
 
@@ -191,7 +191,9 @@ Field respons: `id`, `camera_id`, `location`, `kind`, `horizon_minutes` (null un
 
 Tidak ada endpoint hapus permanen: menghapus kamera berarti menghapus seluruh riwayatnya, jadi kamera dan user cukup dinonaktifkan.
 
-`camera_id` adalah kode publik kamera (misalnya `CAM-01`). Waktu dikirim dalam zona `TIMEZONE` (default WIB, `+07:00`). Error memakai kode stabil pada `detail`: 401 `not_authenticated`, `invalid_token`, `invalid_ticket`, atau `invalid_credentials`; 403 `forbidden`; 404 `camera_not_found`, `user_not_found`, `alert_not_found`, `no_monitoring_data`, `no_prediction`, `no_live_data`, atau `no_stream`; 409 `camera_code_exists` atau `email_already_exists`; 422 `cannot_modify_self`, `invalid_thresholds`, atau `too_many_buckets`.
+`camera_id` adalah kode publik kamera (misalnya `CAM-01`). Waktu dikirim dalam zona `TIMEZONE` (default WIB, `+07:00`). Error memakai kode stabil pada `detail`: 401 `not_authenticated`, `invalid_token`, `invalid_ticket`, atau `invalid_credentials`; 403 `forbidden`; 404 `camera_not_found`, `user_not_found`, `alert_not_found`, `no_monitoring_data`, `no_prediction`, `no_live_data`, atau `no_stream`; 409 `camera_code_exists` atau `email_already_exists`; 429 `too_many_attempts`; 422 `cannot_modify_self`, `invalid_thresholds`, atau `too_many_buckets`; 500 `internal_error` beserta `request_id`.
+
+Setiap respons membawa header `X-Request-ID` (dipakai ulang bila klien mengirimnya). Log API mencatat satu baris per request: method, path tanpa query string, status, waktu sampai byte pertama, dan request id, sehingga error yang dilaporkan pengguna bisa dicari di log. Level log diatur lewat `LOG_LEVEL`.
 
 Endpoint `/api/v1/ingest/cameras/{camera_id}/...` (`GET config`, `POST records`, `PUT live`, `PUT frame`) hanya untuk vision worker, tidak memakai login user, dan wajib memakai header `X-Worker-Key` yang sama dengan `WORKER_API_KEY`. Bila `WORKER_API_KEY` kosong, endpoint ingest menolak semua permintaan (HTTP 503).
 
@@ -239,6 +241,14 @@ Model dipilih dengan eksperimen yang membandingkan naive, moving average, regres
 Model dengan MAE validasi terendah disimpan ke `data/models/forecast/<camera>.json` atau `.pt` (tidak di-commit) dan otomatis dipakai worker. Tanpa file itu worker memakai moving average 10 menit. Opsi worker: `--forecast-model PATH` atau `--no-forecast`.
 
 Status live dan frame disimpan di memori proses API, jadi API harus berjalan sebagai **satu proses** (jangan memakai `--workers` > 1) dan status hilang saat API restart. Riwayat tetap aman di database. Worker memakai sekitar 2,5 GB RAM dan GPU; dengan RAM 8 GB, tutup aplikasi berat saat menjalankan Docker, API, worker, dan frontend bersamaan.
+
+## Retensi Data
+
+Prediksi (tiga baris per menit per kamera) dihapus setelah 30 hari; record per menit dan alert disimpan. Jalankan secara berkala, misalnya sehari sekali:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.scripts.prune --days 30
+```
 
 ## Deployment
 

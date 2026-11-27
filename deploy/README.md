@@ -47,6 +47,14 @@ Cocok untuk VM Azure atau VM lain dengan Docker. Stack: PostgreSQL 17, API, dan 
 
    File CSV ada di laptop yang menjalankan eksperimen; salin ke VM lebih dulu bila belum ada.
 
+Hapus prediksi lebih dari 30 hari setiap malam lewat cron di VM (`crontab -e`):
+
+```
+30 2 * * * cd /path/to/CrowdCast/deploy && docker compose exec -T api python -m app.scripts.prune --days 30
+```
+
+Log API: `docker compose logs -f api`. Setiap baris memuat `rid=<request id>` yang sama dengan header `X-Request-ID` dan field `request_id` pada error 500.
+
 Update versi: `git pull` lalu `docker compose up -d --build`. Backup database:
 
 ```sh
