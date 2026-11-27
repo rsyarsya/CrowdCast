@@ -1,14 +1,24 @@
+from collections.abc import Iterable
 from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 
-from app.api.deps import CurrentUser, DbSession, get_current_user
+from app.api.deps import CurrentUser, DbSession, LiveHubDep, get_current_user
 from app.api.v1.cameras import CAMERA_NOT_FOUND, require_aware
 from app.schemas.alerts import AlertOut
+from app.models import Alert
 from app.services import alerts, monitoring
+from app.services.live import ALERTS_TOPIC, LiveHub
 
 router = APIRouter(prefix="/alerts", tags=["alerts"], dependencies=[Depends(get_current_user)])
+
+
+def publish_alerts(hub: LiveHub, changed: Iterable[Alert]) -> None:
+    for alert in changed:
+        data = AlertOut.from_model(alert).model_dump_json()
+        hub.publish(alert.camera.code, "alert", data)
+        hub.publish(ALERTS_TOPIC, "alert", data)
 
 
 @router.get("", response_model=list[AlertOut])
@@ -38,9 +48,13 @@ async def list_alerts(
     responses={404: {"description": "alert_not_found"}},
 )
 async def acknowledge_alert(
-    db: DbSession, user: CurrentUser, alert_id: Annotated[int, Path()]
+    db: DbSession, hub: LiveHubDep, user: CurrentUser, alert_id: Annotated[int, Path()]
 ) -> AlertOut:
     alert = await alerts.get_alert(db, alert_id)
     if alert is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="alert_not_found")
-    return AlertOut.from_model(await alerts.acknowledge(db, alert, user))
+    already_acknowledged = alert.acknowledged_at is not None
+    await alerts.acknowledge(db, alert, user)
+    if not already_acknowledged:
+        publish_alerts(hub, [alert])
+    return AlertOut.from_model(alert)

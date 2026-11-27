@@ -4,13 +4,16 @@ import secrets
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
+from pydantic import TypeAdapter
 from sqlalchemy import and_, delete, or_, select
 from sqlalchemy.dialects.postgresql import insert
 
 from app.api.deps import DbSession, LiveHubDep
+from app.api.v1.alerts import publish_alerts
 from app.api.v1.cameras import CameraDep
 from app.core.config import get_settings
 from app.models import CrowdRecord, Prediction
+from app.schemas.monitoring import LiveStateOut, MonitoringRecordOut, PredictionOut
 from app.services.alerts import Observation, track_forecasts, track_records
 from app.schemas.ingest import (
     LiveAccepted,
@@ -23,6 +26,7 @@ from app.schemas.ingest import (
 )
 
 MAX_FRAME_BYTES = 2 * 1024 * 1024
+PREDICTIONS = TypeAdapter(list[PredictionOut])
 
 
 def require_worker_key(
@@ -50,7 +54,9 @@ async def get_worker_config(camera: CameraDep) -> WorkerCameraConfig:
 
 
 @router.post("/records", response_model=RecordsAccepted)
-async def post_records(db: DbSession, camera: CameraDep, body: RecordsIn) -> RecordsAccepted:
+async def post_records(
+    db: DbSession, camera: CameraDep, hub: LiveHubDep, body: RecordsIn
+) -> RecordsAccepted:
     """Store per-interval records. Re-sending the same timestamp overwrites it,
     so the worker can safely retry after a network error."""
     rows = [
@@ -71,12 +77,25 @@ async def post_records(db: DbSession, camera: CameraDep, body: RecordsIn) -> Rec
         },
     )
     await db.execute(statement)
-    await track_records(
+    changed = await track_records(
         db,
         camera,
         (Observation(r.timestamp, r.people_count, r.crowd_status) for r in body.records),
     )
     await db.commit()
+    newest = max(body.records, key=lambda r: r.timestamp)
+    hub.publish(
+        camera.code,
+        "record",
+        MonitoringRecordOut(
+            camera_id=camera.code,
+            location=camera.location,
+            timestamp=newest.timestamp,
+            people_count=newest.people_count,
+            crowd_status=newest.crowd_status,
+        ).model_dump_json(),
+    )
+    publish_alerts(hub, changed)
     return RecordsAccepted(received=len(rows))
 
 
@@ -101,13 +120,15 @@ async def get_recent_records(
 
 
 @router.post("/predictions", response_model=RecordsAccepted)
-async def post_predictions(db: DbSession, camera: CameraDep, body: PredictionsIn) -> RecordsAccepted:
+async def post_predictions(
+    db: DbSession, camera: CameraDep, hub: LiveHubDep, body: PredictionsIn
+) -> RecordsAccepted:
     """Store forecasts. A forecast with the same (timestamp, horizon) replaces the
     earlier one, so retries do not create duplicates."""
     keys = [and_(Prediction.timestamp == p.timestamp, Prediction.horizon_minutes == p.horizon_minutes)
             for p in body.predictions]
     await db.execute(delete(Prediction).where(Prediction.camera_id == camera.id, or_(*keys)))
-    db.add_all(
+    stored = [
         Prediction(
             camera_id=camera.id,
             timestamp=p.timestamp,
@@ -118,8 +139,9 @@ async def post_predictions(db: DbSession, camera: CameraDep, body: PredictionsIn
             is_simulation=False,
         )
         for p in body.predictions
-    )
-    await track_forecasts(
+    ]
+    db.add_all(stored)
+    changed = await track_forecasts(
         db,
         camera,
         (
@@ -128,6 +150,12 @@ async def post_predictions(db: DbSession, camera: CameraDep, body: PredictionsIn
         ),
     )
     await db.commit()
+    outgoing = sorted(
+        (PredictionOut.from_model(camera, p) for p in stored),
+        key=lambda p: (p.timestamp, p.horizon_minutes),
+    )
+    hub.publish(camera.code, "prediction", PREDICTIONS.dump_json(outgoing).decode())
+    publish_alerts(hub, changed)
     return RecordsAccepted(received=len(body.predictions))
 
 
@@ -136,6 +164,7 @@ async def put_live(camera: CameraDep, hub: LiveHubDep, body: LiveIn) -> LiveAcce
     state = hub.set_live(
         camera.code, body.timestamp, body.raw_count, body.smoothed_count, body.crowd_status
     )
+    hub.publish(camera.code, "live", LiveStateOut.from_state(camera.code, state).model_dump_json())
     return LiveAccepted(received_at=state.received_at)
 
 

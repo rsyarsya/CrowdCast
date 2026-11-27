@@ -66,12 +66,14 @@ async def _open_alert(
         else Alert.horizon_minutes == horizon_minutes
     )
     return await session.scalar(
-        select(Alert).where(
+        select(Alert)
+        .where(
             Alert.camera_id == camera.id,
             Alert.kind == kind,
             horizon_filter,
             Alert.ended_at.is_(None),
         )
+        .options(selectinload(Alert.camera), selectinload(Alert.acknowledged_by))
     )
 
 
@@ -92,6 +94,8 @@ async def _track(
         if not did_change:
             continue
         if alert is not None and alert is not previous:
+            alert.camera = camera
+            alert.acknowledged_by = None
             session.add(alert)
         await session.flush()
         touched = alert if alert is not None else previous
