@@ -80,3 +80,34 @@ def decode_access_token(token: str) -> dict[str, Any] | None:
         )
     except jwt.PyJWTError:
         return None
+
+
+TICKET_TYPE = "ticket"
+
+
+def create_ticket(subject: str | Any, scope: str) -> str:
+    """Short-lived token for URLs the browser opens without headers (<img>, EventSource).
+
+    It only works for `scope` and is never accepted as a Bearer token.
+    """
+    settings = get_settings()
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": str(subject),
+        "typ": TICKET_TYPE,
+        "scope": scope,
+        "exp": now + timedelta(seconds=settings.STREAM_TICKET_SECONDS),
+        "iat": now,
+    }
+    return jwt.encode(
+        payload, settings.SECRET_KEY.get_secret_value(), algorithm=settings.ALGORITHM
+    )
+
+
+def decode_ticket(token: str, scope: str) -> str | None:
+    """The ticket's subject, or None when it is invalid, expired, or for another scope."""
+    payload = decode_access_token(token)
+    if payload is None or payload.get("typ") != TICKET_TYPE or payload.get("scope") != scope:
+        return None
+    subject = payload.get("sub")
+    return str(subject) if subject is not None else None

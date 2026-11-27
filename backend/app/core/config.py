@@ -55,6 +55,10 @@ class Settings(BaseSettings):
     WORKER_API_KEY: SecretStr | None = None
     # Live state older than this is reported as stale (worker stopped or lagging).
     LIVE_STALE_SECONDS: int = 15
+    # Lifetime of the ?ticket= used by <img> and EventSource; checked only on connect.
+    STREAM_TICKET_SECONDS: int = 60
+    # Comment line sent on idle event streams so proxies keep the connection open.
+    SSE_HEARTBEAT_SECONDS: float = 15.0
     # Video file used by the seed script for the simulated demo camera.
     VIDEO_SAMPLE_PATH: str = "data/videos/sample.mp4"
 
