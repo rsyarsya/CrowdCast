@@ -142,6 +142,22 @@ Role dibaca ulang dari database di setiap request, jadi perubahan role atau peno
 | `GET /cameras/{camera_id}/live` | Jumlah dan status saat ini dari vision worker (`people_count`, `smoothed_count`, `crowd_status`, `is_stale`). Status live memakai dwell time 30 detik sehingga tidak berkedip. |
 | `GET /cameras/{camera_id}/stream` | Video beranotasi MJPEG (`multipart/x-mixed-replace`). Karena butuh token, browser tidak bisa memakainya langsung sebagai `src` tag `<img>`; frontend perlu meneruskannya lewat route server yang menambahkan header `Authorization`. |
 
+### Peringatan Ramai (operator dan admin)
+
+Alert dibuat otomatis dari data yang dikirim worker, tanpa langkah manual:
+
+- `crowded`: terbuka saat record per menit berstatus Ramai, tertutup pada record berikutnya yang tidak Ramai.
+- `forecast_crowded`: satu alert per horizon (5/15/30 menit), terbuka saat prediksi horizon itu Ramai dan tertutup saat prediksi berikutnya tidak Ramai.
+
+Hanya ada satu alert terbuka per kamera, jenis, dan horizon. Data yang dikirim ulang atau datang terlambat tidak membuat duplikat dan tidak menutup alert.
+
+| Endpoint | Fungsi |
+| --- | --- |
+| `GET /alerts?camera_id=&active=&start=&end=&limit=` | Daftar alert terbaru lebih dulu. `active=true` hanya yang masih terbuka. `start`/`end` menyaring `started_at` dan wajib memakai offset zona waktu. |
+| `POST /alerts/{alert_id}/ack` | Menandai alert sudah dilihat, menyimpan waktu dan nama user. Ack kedua tidak mengubah apa pun. |
+
+Field respons: `id`, `camera_id`, `location`, `kind`, `horizon_minutes` (null untuk `crowded`), `started_at`, `last_seen_at`, `ended_at`, `target_time` (perkiraan waktu Ramai untuk alert prediksi), `is_active`, `peak_count`, `acknowledged_at`, `acknowledged_by`.
+
 ### Manajemen (admin saja)
 
 | Endpoint | Fungsi |
@@ -155,7 +171,7 @@ Role dibaca ulang dari database di setiap request, jadi perubahan role atau peno
 
 Tidak ada endpoint hapus permanen: menghapus kamera berarti menghapus seluruh riwayatnya, jadi kamera dan user cukup dinonaktifkan.
 
-`camera_id` adalah kode publik kamera (misalnya `CAM-01`). Waktu dikirim dalam zona `TIMEZONE` (default WIB, `+07:00`). Error memakai kode stabil pada `detail`: 401 `not_authenticated`, `invalid_token`, atau `invalid_credentials`; 403 `forbidden`; 404 `camera_not_found`, `user_not_found`, `no_monitoring_data`, `no_prediction`, `no_live_data`, atau `no_stream`; 409 `camera_code_exists` atau `email_already_exists`; 422 `cannot_modify_self` atau `invalid_thresholds`.
+`camera_id` adalah kode publik kamera (misalnya `CAM-01`). Waktu dikirim dalam zona `TIMEZONE` (default WIB, `+07:00`). Error memakai kode stabil pada `detail`: 401 `not_authenticated`, `invalid_token`, atau `invalid_credentials`; 403 `forbidden`; 404 `camera_not_found`, `user_not_found`, `alert_not_found`, `no_monitoring_data`, `no_prediction`, `no_live_data`, atau `no_stream`; 409 `camera_code_exists` atau `email_already_exists`; 422 `cannot_modify_self` atau `invalid_thresholds`.
 
 Endpoint `/api/v1/ingest/cameras/{camera_id}/...` (`GET config`, `POST records`, `PUT live`, `PUT frame`) hanya untuk vision worker, tidak memakai login user, dan wajib memakai header `X-Worker-Key` yang sama dengan `WORKER_API_KEY`. Bila `WORKER_API_KEY` kosong, endpoint ingest menolak semua permintaan (HTTP 503).
 
@@ -217,13 +233,13 @@ Test selalu memakai database `crowdcast_test` (lihat [`tests/conftest.py`](tests
 ## Organisasi Kode
 
 - [`app/main.py`](app/main.py): `create_app()`, CORS, dan lifespan yang membuat serta menutup engine database.
-- [`app/api/`](app/api/): router health, router `/api/v1` (`auth.py`, `cameras.py`, `camera_admin.py`, `users.py`, `ingest.py`), dan dependency bersama (`deps.py`: session database, user dari token, syarat admin).
+- [`app/api/`](app/api/): router health, router `/api/v1` (`auth.py`, `alerts.py`, `cameras.py`, `camera_admin.py`, `users.py`, `ingest.py`), dan dependency bersama (`deps.py`: session database, user dari token, syarat admin).
 - [`app/schemas/`](app/schemas/): schema respons API, termasuk konversi waktu ke WIB.
-- [`app/services/`](app/services/): query monitoring (`monitoring.py`), aturan user dan kamera (`users.py`, `cameras.py`), state live dan frame di memori (`live.py`), serta pipeline dan detector vision (`vision/`).
+- [`app/services/`](app/services/): query monitoring (`monitoring.py`), aturan user dan kamera (`users.py`, `cameras.py`), pelacakan alert (`alerts.py`), state live dan frame di memori (`live.py`), serta pipeline dan detector vision (`vision/`).
 - [`app/worker/`](app/worker/): vision worker (`python -m app.worker`): replay video, thread deteksi, overlay MJPEG, dan client ingest.
 - [`app/core/`](app/core/): konfigurasi (`get_settings()`), hashing password, JWT, dan penyensoran kredensial pada URL sumber video.
 - [`app/db/`](app/db/): base ORM dan pembuatan engine/session async.
-- [`app/models/`](app/models/): model ORM User, Camera, CrowdRecord, Prediction, dan enum status.
+- [`app/models/`](app/models/): model ORM User, Camera, CrowdRecord, Prediction, Alert, dan enum.
 - [`alembic/`](alembic/): environment dan file migrasi skema.
 - [`app/scripts/`](app/scripts/): `seed.py` (kamera demo, riwayat simulasi, administrator), `register_camera.py`, dan `backfill_records.py`.
 - [`docker/postgres-init/`](docker/postgres-init/): script inisialisasi container PostgreSQL lokal.
