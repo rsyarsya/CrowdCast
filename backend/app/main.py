@@ -5,8 +5,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import health
+from app.api.middleware import RequestContextMiddleware, internal_error_handler
 from app.api.v1 import api_router
 from app.core.config import get_settings
+from app.core.logging import configure_logging
 from app.db.session import create_engine, create_sessionmaker
 from app.services.live import LiveHub
 from app.services.login_limiter import LoginLimiter
@@ -29,6 +31,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    configure_logging(settings.LOG_LEVEL)
     app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
@@ -36,7 +39,10 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=["X-Request-ID"],
     )
+    app.add_middleware(RequestContextMiddleware)
+    app.add_exception_handler(Exception, internal_error_handler)
     app.include_router(health.router)
     app.include_router(api_router, prefix=settings.API_V1_STR)
     return app
