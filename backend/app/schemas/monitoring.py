@@ -1,10 +1,11 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, field_serializer
 
 from app.core.config import get_settings
 from app.models import Camera, CrowdRecord, CrowdStatus, Prediction
+from app.services.live import LiveState
 
 
 def to_local_time(value: datetime) -> datetime:
@@ -72,6 +73,18 @@ class LiveStateOut(BaseModel):
     def serialize_timestamp(self, value: datetime) -> str:
         return to_local_time(value).isoformat()
 
+    @classmethod
+    def from_state(cls, camera_code: str, state: LiveState) -> "LiveStateOut":
+        age = (datetime.now(timezone.utc) - state.received_at).total_seconds()
+        return cls(
+            camera_id=camera_code,
+            timestamp=state.timestamp,
+            people_count=state.raw_count,
+            smoothed_count=state.smoothed_count,
+            crowd_status=state.crowd_status,
+            is_stale=age > get_settings().LIVE_STALE_SECONDS,
+        )
+
 
 class PredictionOut(BaseModel):
     camera_id: str
@@ -100,3 +113,4 @@ class PredictionOut(BaseModel):
             model_name=prediction.model_name,
             is_simulation=prediction.is_simulation,
         )
+
