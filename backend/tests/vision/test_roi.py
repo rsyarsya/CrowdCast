@@ -56,3 +56,9 @@ def test_roi_json_roundtrip():
 def test_invalid_roi_rejected(points):
     with pytest.raises(ValueError):
         Roi.from_points(points)
+
+
+def test_person_cut_by_frame_edge_counts_in_roi_drawn_to_the_edge():
+    roi = Roi.from_points([(0, 0.5), (1, 0.5), (1, 1), (0, 1)])  # bottom half, down to the edge
+    box = Box(10, 60, 20, 100)  # feet exactly on the bottom border of a 100x100 frame
+    assert count_in_roi([box], roi, 100, 100) == 1

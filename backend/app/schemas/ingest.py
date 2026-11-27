@@ -41,6 +41,18 @@ class RecordsAccepted(BaseModel):
     received: int
 
 
+class PredictionIn(BaseModel):
+    timestamp: AwareDatetime  # last observed minute; target time = timestamp + horizon
+    horizon_minutes: int = Field(gt=0, le=1440)
+    predicted_count: int = Field(ge=0)
+    predicted_status: CrowdStatus
+    model_name: str = Field(min_length=1, max_length=50)
+
+
+class PredictionsIn(BaseModel):
+    predictions: list[PredictionIn] = Field(min_length=1, max_length=100)
+
+
 class LiveIn(BaseModel):
     timestamp: AwareDatetime
     raw_count: int = Field(ge=0)

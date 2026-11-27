@@ -80,4 +80,22 @@ def count_in_roi(
     if roi is None:
         return len(boxes)
     polygon = roi.to_pixels(frame_w, frame_h)
-    return sum(point_in_polygon(anchor_point(b, anchor), polygon) for b in boxes)
+    return sum(box_in_polygon(b, polygon, frame_w, frame_h, anchor) for b in boxes)
+
+
+def box_in_polygon(
+    box: Box, polygon: Sequence[Point], frame_w: int, frame_h: int, anchor: AnchorMode = "foot"
+) -> bool:
+    """Whether a person counts for an ROI already converted to pixels."""
+    return point_in_polygon(_clamp(anchor_point(box, anchor), frame_w, frame_h), polygon)
+
+
+def _clamp(point: Point, frame_w: int, frame_h: int) -> Point:
+    """Keep the anchor just inside the frame.
+
+    People cut off by the bottom edge have their foot point exactly on the frame
+    border (y == frame_h). An ROI drawn to the frame edge would then miss them,
+    because a point lying on a polygon edge counts as outside.
+    """
+    x, y = point
+    return min(max(x, 0.0), frame_w - 1.0), min(max(y, 0.0), frame_h - 1.0)

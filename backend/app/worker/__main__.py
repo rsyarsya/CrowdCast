@@ -52,6 +52,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--smoothing-window", type=float, default=5.0, help="Rolling median window (s)")
     parser.add_argument("--interval", type=int, default=60, help="Record interval (s)")
     parser.add_argument("--dwell", type=float, default=30.0, help="Live status dwell time (s)")
+    parser.add_argument(
+        "--forecast-model",
+        type=Path,
+        help="Model from experiments/phase5_forecast.py (default: data/models/forecast/<camera>.pt|.json)",
+    )
+    parser.add_argument("--no-forecast", action="store_true", help="Do not send predictions")
     return parser.parse_args()
 
 
@@ -94,6 +100,22 @@ def main() -> None:
         interval_s=args.interval,
         status_dwell_s=args.dwell,
     )
+    forecast = None
+    if not args.no_forecast:
+        from datetime import timedelta
+
+        from app.services.forecast.loader import find_model_file, load_forecaster
+        from app.worker.forecasting import ForecastRunner
+
+        model_path = args.forecast_model or find_model_file(BACKEND_DIR / "data" / "models" / "forecast", args.camera)
+        forecaster = load_forecaster(model_path)
+        forecast = ForecastRunner(forecaster, thresholds, interval=timedelta(seconds=args.interval))
+        forecast.seed(client.get_recent_records())
+        logger.info(
+            "Forecasting with %s (%d minutes of history loaded, %d needed)",
+            forecaster.name, forecast.history_length, forecaster.min_history,
+        )
+
     worker = VisionWorker(
         detector=detector,
         encoder=make_encoder(roi, timezone=settings.TIMEZONE),
@@ -102,6 +124,7 @@ def main() -> None:
         thresholds=thresholds,
         detect_interval_s=1 / args.detect_fps,
         stream_interval_s=1 / args.stream_fps,
+        forecast=forecast,
     )
     signal.signal(signal.SIGINT, lambda *_: worker.stop())
     logger.info("Streaming at %.0f fps, detecting at %.1f fps. Press Ctrl+C to stop.", args.stream_fps, args.detect_fps)

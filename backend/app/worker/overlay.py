@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 import cv2
 import numpy as np
 
-from app.services.vision.roi import Roi, anchor_point, point_in_polygon
+from app.services.vision.roi import Roi, box_in_polygon
 from app.services.vision.types import Box, LiveState
 
 # BGR colors close to the dashboard status palette.
@@ -35,7 +35,7 @@ def make_encoder(
             pts = np.array([(x * scale, y * scale) for x, y in polygon], dtype=np.int32)
             cv2.polylines(image, [pts], isClosed=True, color=ROI_COLOR, thickness=2)
         for box in boxes:
-            inside = polygon is None or point_in_polygon(anchor_point(box), polygon)
+            inside = polygon is None or box_in_polygon(box, polygon, w, h)
             p1 = (int(box.x1 * scale), int(box.y1 * scale))
             p2 = (int(box.x2 * scale), int(box.y2 * scale))
             cv2.rectangle(image, p1, p2, INSIDE if inside else OUTSIDE, 1)

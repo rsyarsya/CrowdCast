@@ -3,20 +3,24 @@
 import secrets
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
+from sqlalchemy import and_, delete, or_, select
 from sqlalchemy.dialects.postgresql import insert
 
 from app.api.deps import DbSession, LiveHubDep
 from app.api.v1.cameras import CameraDep
 from app.core.config import get_settings
-from app.models import CrowdRecord
+from app.models import CrowdRecord, Prediction
 from app.schemas.ingest import (
     LiveAccepted,
     LiveIn,
+    PredictionsIn,
+    RecordIn,
     RecordsAccepted,
     RecordsIn,
     WorkerCameraConfig,
 )
+
 MAX_FRAME_BYTES = 2 * 1024 * 1024
 
 
@@ -68,6 +72,49 @@ async def post_records(db: DbSession, camera: CameraDep, body: RecordsIn) -> Rec
     await db.execute(statement)
     await db.commit()
     return RecordsAccepted(received=len(rows))
+
+
+@router.get("/records/recent", response_model=list[RecordIn])
+async def get_recent_records(
+    db: DbSession, camera: CameraDep, limit: Annotated[int, Query(ge=1, le=1440)] = 180
+) -> list[RecordIn]:
+    """Latest records in ascending time order, so a restarted worker can resume
+    forecasting without waiting for a fresh history."""
+    rows = (
+        await db.scalars(
+            select(CrowdRecord)
+            .where(CrowdRecord.camera_id == camera.id)
+            .order_by(CrowdRecord.timestamp.desc())
+            .limit(limit)
+        )
+    ).all()
+    return [
+        RecordIn(timestamp=r.timestamp, people_count=r.people_count, crowd_status=r.crowd_status)
+        for r in reversed(rows)
+    ]
+
+
+@router.post("/predictions", response_model=RecordsAccepted)
+async def post_predictions(db: DbSession, camera: CameraDep, body: PredictionsIn) -> RecordsAccepted:
+    """Store forecasts. A forecast with the same (timestamp, horizon) replaces the
+    earlier one, so retries do not create duplicates."""
+    keys = [and_(Prediction.timestamp == p.timestamp, Prediction.horizon_minutes == p.horizon_minutes)
+            for p in body.predictions]
+    await db.execute(delete(Prediction).where(Prediction.camera_id == camera.id, or_(*keys)))
+    db.add_all(
+        Prediction(
+            camera_id=camera.id,
+            timestamp=p.timestamp,
+            horizon_minutes=p.horizon_minutes,
+            predicted_count=p.predicted_count,
+            predicted_status=p.predicted_status,
+            model_name=p.model_name,
+            is_simulation=False,
+        )
+        for p in body.predictions
+    )
+    await db.commit()
+    return RecordsAccepted(received=len(body.predictions))
 
 
 @router.put("/live", response_model=LiveAccepted)

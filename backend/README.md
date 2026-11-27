@@ -172,11 +172,13 @@ Worker memutar video rekaman seolah CCTV live, menjalankan YOLO (`yolo11n`, imgs
 2. Daftarkan kamera dan isi riwayat awal (sekali saja):
 
    ```powershell
-   .\.venv\Scripts\python.exe -m app.scripts.register_camera --code CAM-02 --name "Kabukicho" --location "Kabukicho, Shinjuku" --source data/videos/kabukicho_night_2026-08-25_720p.mp4 --roi experiments/configs/roi/kabukicho.json --normal 4 --ramai 8
+   .\.venv\Scripts\python.exe -m app.scripts.register_camera --code CAM-02 --name "Kabukicho" --location "Kabukicho, Shinjuku" --source data/videos/kabukicho_night_2026-08-25_720p.mp4 --roi experiments/configs/roi/kabukicho.json --normal 4 --ramai 12
    .\.venv\Scripts\python.exe -m app.scripts.backfill_records --camera CAM-02 --csv experiments/outputs/phase3/kabukicho_minutes.csv
    ```
 
    Backfill memuat hitungan per menit dari pemrosesan rekaman 12 jam dan menggeser waktunya agar berakhir tepat sebelum sekarang.
+
+   Setelah ROI diubah (`experiments/roi_tool.py --camera kabukicho --minutes 0 300 390 600`), jalankan ulang `experiments/phase3_dataset.py build` untuk dataset dan threshold baru, `register_camera` dengan threshold itu, lalu `backfill_records ... --replace` untuk mengganti seluruh riwayat kamera.
 
 3. Jalankan API (bagian sebelumnya), lalu di terminal lain:
 
@@ -187,6 +189,18 @@ Worker memutar video rekaman seolah CCTV live, menjalankan YOLO (`yolo11n`, imgs
    `--start-minute 300` memulai dari pukul 23:00 JST pada rekaman (jam ramai). Video diulang saat habis. Hentikan dengan Ctrl+C; record menit terakhir tetap dikirim.
 
 4. Periksa `http://localhost:8000/api/v1/cameras/CAM-02/live` dan buka `http://localhost:8000/api/v1/cameras/CAM-02/stream` di browser.
+
+### Prediksi 5/15/30 Menit
+
+Setiap record menit selesai, worker memprediksi jumlah orang 5, 15, dan 30 menit ke depan lalu mengirimnya ke `POST /ingest/.../predictions`; hasilnya muncul di `GET /cameras/{camera_id}/predictions/latest` dengan `is_simulation: false`. Saat start, worker memuat riwayat terbaru dari API. Celah lebih dari 5 menit membuat riwayat dimulai ulang.
+
+Model dipilih dengan eksperimen yang membandingkan naive, moving average, regresi linear (lag 30 menit), dan GRU kecil pada dataset per menit (split waktu 60/20/20):
+
+```powershell
+.\.venv\Scripts\python.exe experiments\phase5_forecast.py
+```
+
+Model dengan MAE validasi terendah disimpan ke `data/models/forecast/<camera>.json` atau `.pt` (tidak di-commit) dan otomatis dipakai worker. Tanpa file itu worker memakai moving average 10 menit. Opsi worker: `--forecast-model PATH` atau `--no-forecast`.
 
 Status live dan frame disimpan di memori proses API, jadi API harus berjalan sebagai **satu proses** (jangan memakai `--workers` > 1) dan status hilang saat API restart. Riwayat tetap aman di database. Worker memakai sekitar 2,5 GB RAM dan GPU; dengan RAM 8 GB, tutup aplikasi berat saat menjalankan Docker, API, worker, dan frontend bersamaan.
 
