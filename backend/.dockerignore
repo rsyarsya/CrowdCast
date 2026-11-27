@@ -1,0 +1,12 @@
+.venv
+.env
+.env.*
+!.env.example
+.pytest_cache
+**/__pycache__
+data
+experiments
+tests
+docker/postgres-init
+*.pt
+*.onnx
