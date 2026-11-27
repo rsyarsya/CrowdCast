@@ -1,15 +1,19 @@
-from datetime import datetime
-from typing import Annotated
+from datetime import datetime, timedelta, timezone
+from typing import Annotated, Literal
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 
 from app.api.deps import DbSession, LiveHubDep, get_current_user
+from app.core.config import get_settings
 from app.models import Camera
 from app.schemas.monitoring import (
     CameraOut,
     LiveStateOut,
     MonitoringRecordOut,
+    MonitoringSummaryOut,
     PredictionOut,
+    SummaryPointOut,
 )
 from app.services import monitoring
 
@@ -95,6 +99,55 @@ async def list_monitoring(
         )
     records = await monitoring.list_records(db, camera, start, end, limit)
     return [MonitoringRecordOut.from_model(camera, record) for record in records]
+
+
+BUCKETS = {
+    "5m": timedelta(minutes=5),
+    "15m": timedelta(minutes=15),
+    "1h": timedelta(hours=1),
+    "1d": timedelta(days=1),
+}
+MAX_BUCKETS = 2000
+
+
+@router.get(
+    "/{camera_id}/monitoring/summary",
+    response_model=MonitoringSummaryOut,
+    responses=NOT_FOUND_DOC,
+)
+async def summarize_monitoring(
+    db: DbSession,
+    camera: CameraDep,
+    bucket: Annotated[Literal["5m", "15m", "1h", "1d"], Query()] = "15m",
+    start: Annotated[
+        datetime | None, Query(description="ISO 8601 with offset, inclusive; default end - 24 h")
+    ] = None,
+    end: Annotated[
+        datetime | None, Query(description="ISO 8601 with offset, exclusive; default now")
+    ] = None,
+) -> MonitoringSummaryOut:
+    """History grouped per bucket for long ranges. Buckets align to midnight in TIMEZONE."""
+    require_aware(start, "start")
+    require_aware(end, "end")
+    end = end or datetime.now(timezone.utc)
+    start = start or end - timedelta(hours=24)
+    if start >= end:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, detail="start must be before end"
+        )
+    size = BUCKETS[bucket]
+    if (end - start) / size > MAX_BUCKETS:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail="too_many_buckets")
+    origin = datetime(2000, 1, 1, tzinfo=ZoneInfo(get_settings().TIMEZONE))
+    buckets = await monitoring.summarize_records(db, camera, start, end, size, origin)
+    return MonitoringSummaryOut(
+        camera_id=camera.code,
+        location=camera.location,
+        bucket=bucket,
+        start=start,
+        end=end,
+        points=[SummaryPointOut.from_bucket(b) for b in buckets],
+    )
 
 
 @router.get(

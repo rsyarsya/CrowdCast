@@ -6,6 +6,7 @@ from pydantic import BaseModel, field_serializer
 from app.core.config import get_settings
 from app.models import Camera, CrowdRecord, CrowdStatus, Prediction
 from app.services.live import LiveState
+from app.services.monitoring import RecordBucket
 
 
 def to_local_time(value: datetime) -> datetime:
@@ -114,3 +115,50 @@ class PredictionOut(BaseModel):
             is_simulation=prediction.is_simulation,
         )
 
+
+
+STATUS_SEVERITY = {CrowdStatus.SEPI: 0, CrowdStatus.NORMAL: 1, CrowdStatus.RAMAI: 2}
+
+
+class SummaryPointOut(BaseModel):
+    """`crowd_status` is the most frequent status in the bucket; ties go to the busier one."""
+
+    bucket_start: datetime
+    avg_count: float
+    min_count: int
+    max_count: int
+    records: int
+    status_counts: dict[CrowdStatus, int]
+    crowd_status: CrowdStatus
+
+    @field_serializer("bucket_start")
+    def serialize_bucket_start(self, value: datetime) -> str:
+        return to_local_time(value).isoformat()
+
+    @classmethod
+    def from_bucket(cls, bucket: RecordBucket) -> "SummaryPointOut":
+        dominant = max(
+            bucket.status_counts, key=lambda s: (bucket.status_counts[s], STATUS_SEVERITY[s])
+        )
+        return cls(
+            bucket_start=bucket.start,
+            avg_count=round(bucket.avg_count, 1),
+            min_count=bucket.min_count,
+            max_count=bucket.max_count,
+            records=bucket.records,
+            status_counts=bucket.status_counts,
+            crowd_status=dominant,
+        )
+
+
+class MonitoringSummaryOut(BaseModel):
+    camera_id: str
+    location: str
+    bucket: str
+    start: datetime
+    end: datetime
+    points: list[SummaryPointOut]
+
+    @field_serializer("start", "end")
+    def serialize_range(self, value: datetime) -> str:
+        return to_local_time(value).isoformat()

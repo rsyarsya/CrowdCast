@@ -1,13 +1,14 @@
 """Read queries for monitoring data. Pure database access, no HTTP concerns."""
 
 from collections.abc import Sequence
-from datetime import datetime
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Camera, CrowdRecord, Prediction
+from app.models import Camera, CrowdRecord, CrowdStatus, Prediction
 
 
 async def list_cameras(session: AsyncSession) -> Sequence[Camera]:
@@ -69,3 +70,61 @@ async def get_latest_predictions(
         .order_by(Prediction.horizon_minutes, Prediction.timestamp.desc())
     )
     return (await session.scalars(query)).all()
+
+
+@dataclass(frozen=True, slots=True)
+class RecordBucket:
+    start: datetime
+    avg_count: float
+    min_count: int
+    max_count: int
+    records: int
+    status_counts: dict[CrowdStatus, int]
+
+
+async def summarize_records(
+    session: AsyncSession,
+    camera: Camera,
+    start: datetime,
+    end: datetime,
+    bucket: timedelta,
+    origin: datetime,
+) -> list[RecordBucket]:
+    """Records in [start, end) grouped into `bucket`-long windows aligned to `origin`.
+
+    Buckets without records are left out.
+    """
+    bucket_start = func.date_bin(bucket, CrowdRecord.timestamp, origin).label("bucket_start")
+    per_status = [
+        func.count().filter(CrowdRecord.crowd_status == status).label(status.value)
+        for status in CrowdStatus
+    ]
+    query = (
+        select(
+            bucket_start,
+            func.avg(CrowdRecord.people_count),
+            func.min(CrowdRecord.people_count),
+            func.max(CrowdRecord.people_count),
+            func.count(),
+            *per_status,
+        )
+        .where(
+            CrowdRecord.camera_id == camera.id,
+            CrowdRecord.timestamp >= start,
+            CrowdRecord.timestamp < end,
+        )
+        .group_by(bucket_start)
+        .order_by(bucket_start)
+    )
+    rows = (await session.execute(query)).all()
+    return [
+        RecordBucket(
+            start=row[0],
+            avg_count=float(row[1]),
+            min_count=row[2],
+            max_count=row[3],
+            records=row[4],
+            status_counts={status: row[5 + i] for i, status in enumerate(CrowdStatus)},
+        )
+        for row in rows
+    ]
