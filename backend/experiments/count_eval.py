@@ -18,6 +18,8 @@ Run from the backend folder:
 `evaluate` compares the labels with the YOLO detections saved by
            phase3_dataset.py extract for the same frames: count error, status
            agreement, and person-level precision and recall.
+`sweep`    re-runs detection on the labeled frames for several models, image
+           sizes, tilings, and confidence thresholds, and ranks them.
 """
 
 from __future__ import annotations
@@ -202,43 +204,61 @@ def match(clicks: list[tuple[float, float]], boxes: list[Box], pad: float) -> li
     return pairs
 
 
-def evaluate(args: argparse.Namespace) -> None:
-    data = load_labels(args.camera)
-    items = [item for item in data["frames"] if item["points"] is not None]
-    if not items:
-        raise SystemExit("No labeled frames yet. Run label first.")
-    _, w, h = video_info(args.video)
-    polygon = Roi.from_json((ROI_DIR / f"{args.camera}.json").read_text()).to_pixels(w, h)
-    th = StatusThresholds(args.normal_from, args.ramai_from)
-    boxes_by_frame = load_boxes({item["frame"] for item in items})
-
+def frame_table(items, boxes_by_frame, polygon, w: int, h: int, pad: float, th: StatusThresholds) -> pd.DataFrame:
     rows = []
     for item in items:
         clicks = [(x * w, y * h) for x, y in item["points"]]
         boxes = boxes_by_frame[item["frame"]]
         click_in = [point_in_polygon(c, polygon) for c in clicks]
         box_in = [box_in_polygon(b, polygon, w, h) for b in boxes]
-        pairs = match(clicks, boxes, args.pad)
-        tp = sum(click_in[c] and box_in[b] for c, b in pairs)
-        border = sum(click_in[c] != box_in[b] for c, b in pairs)
+        pairs = match(clicks, boxes, pad)
         matched_c, matched_b = {c for c, _ in pairs}, {b for _, b in pairs}
-        fn = sum(click_in[c] for c in range(len(clicks)) if c not in matched_c)
-        fp = sum(box_in[b] for b in range(len(boxes)) if b not in matched_b)
         rows.append({
             "frame": item["frame"],
             "minute": item["minute"],
             "minute_status": item["minute_status"],
             "label_count": sum(click_in),
             "pred_count": sum(box_in),
-            "tp": tp,
-            "fp": fp,
-            "fn": fn,
-            "border": border,
+            "tp": sum(click_in[c] and box_in[b] for c, b in pairs),
+            "fp": sum(box_in[b] for b in range(len(boxes)) if b not in matched_b),
+            "fn": sum(click_in[c] for c in range(len(clicks)) if c not in matched_c),
+            "border": sum(click_in[c] != box_in[b] for c, b in pairs),
         })
     df = pd.DataFrame(rows)
     df["error"] = df.pred_count - df.label_count
     df["label_status"] = [classify(c, th) for c in df.label_count]
     df["pred_status"] = [classify(c, th) for c in df.pred_count]
+    return df
+
+
+def summarize(df: pd.DataFrame) -> dict[str, float]:
+    s = score(df.pred_count.tolist(), df.label_count.tolist(), df.pred_status.tolist(), df.label_status.tolist())
+    tp, fp, fn = df.tp.sum(), df.fp.sum(), df.fn.sum()
+    return {
+        "mae": s.mae,
+        "rmse": s.rmse,
+        "bias": s.bias,
+        "status_acc": s.status_accuracy,
+        "precision": tp / max(tp + fp, 1),
+        "recall": tp / max(tp + fn, 1),
+    }
+
+
+def labeled_items(camera: str) -> tuple[dict, list[dict]]:
+    data = load_labels(camera)
+    items = [item for item in data["frames"] if item["points"] is not None]
+    if not items:
+        raise SystemExit("No labeled frames yet. Run label first.")
+    return data, items
+
+
+def evaluate(args: argparse.Namespace) -> None:
+    data, items = labeled_items(args.camera)
+    _, w, h = video_info(args.video)
+    polygon = Roi.from_json((ROI_DIR / f"{args.camera}.json").read_text()).to_pixels(w, h)
+    th = StatusThresholds(args.normal_from, args.ramai_from)
+    boxes_by_frame = load_boxes({item["frame"] for item in items})
+    df = frame_table(items, boxes_by_frame, polygon, w, h, args.pad, th)
 
     total = score(df.pred_count.tolist(), df.label_count.tolist(), df.pred_status.tolist(), df.label_status.tolist())
     tp, fp, fn = df.tp.sum(), df.fp.sum(), df.fn.sum()
@@ -265,6 +285,48 @@ def evaluate(args: argparse.Namespace) -> None:
     plot(df, th, OUT_DIR / f"{args.camera}_scatter.png", args.camera)
     draw_worst(df, data, boxes_by_frame, polygon, args)
     print(f"Saved per-frame CSV, summary, scatter plot, and worst frames to {OUT_DIR}")
+
+
+def sweep(args: argparse.Namespace) -> None:
+    """Re-run detection on the labeled frames with each config and score it."""
+    import time
+
+    import cv2
+
+    sys.path.insert(0, str(EXP_DIR))
+    from phase1_detect import load_model, run_detector
+
+    _, items = labeled_items(args.camera)
+    cap = cv2.VideoCapture(str(args.video))
+    frames = {item["frame"]: read_frame(cap, item["frame"]) for item in items}
+    cap.release()
+    h, w = next(iter(frames.values())).shape[:2]
+    polygon = Roi.from_json((ROI_DIR / f"{args.camera}.json").read_text()).to_pixels(w, h)
+    th = StatusThresholds(args.normal_from, args.ramai_from)
+    min_conf = min(args.confs)
+
+    rows = []
+    for model_name in args.models:
+        model = load_model(model_name)
+        for imgsz in args.imgsz:
+            for tiles in args.tiles:
+                run_detector(model, frames[items[0]["frame"]], imgsz, min_conf, tiles, args)
+                start = time.perf_counter()
+                raw = {f: run_detector(model, img, imgsz, min_conf, tiles, args) for f, img in frames.items()}
+                ms = (time.perf_counter() - start) / len(frames) * 1000
+                for conf in args.confs:
+                    boxes = {f: [Box(*d[:5]) for d in dets if d[4] >= conf] for f, dets in raw.items()}
+                    df = frame_table(items, boxes, polygon, w, h, args.pad, th)
+                    row = {"model": Path(model_name).stem, "imgsz": imgsz, "tiles": tiles, "conf": conf,
+                           "ms_per_frame": ms, **summarize(df)}
+                    rows.append(row)
+                    print(f"{row['model']:>8} {imgsz:>5} {tiles:>5} conf {conf:.2f}  MAE {row['mae']:.2f}  "
+                          f"bias {row['bias']:+.2f}  status {row['status_acc']:.1%}  P {row['precision']:.1%}  "
+                          f"R {row['recall']:.1%}  {ms:.0f} ms", flush=True)
+    report = pd.DataFrame(rows).sort_values("mae")
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    report.to_csv(OUT_DIR / f"{args.camera}_sweep.csv", index=False, float_format="%.3f")
+    print(report.head(10).to_string(index=False, float_format=lambda v: f"{v:.3f}"))
 
 
 def plot(df: pd.DataFrame, th: StatusThresholds, path: Path, camera: str) -> None:
@@ -322,15 +384,23 @@ def main() -> None:
     smp.add_argument("--force", action="store_true")
     sub.add_parser("label")
     ev = sub.add_parser("evaluate")
-    ev.add_argument("--normal-from", type=int, default=4)
-    ev.add_argument("--ramai-from", type=int, default=12)
-    ev.add_argument("--pad", type=float, default=0.15, help="Box growth for matching clicks")
     ev.add_argument("--worst", type=int, default=3, help="Frames to draw with the largest error")
+    sw = sub.add_parser("sweep")
+    sw.add_argument("--models", nargs="+", default=["yolo11n.pt", "yolo11s.pt"])
+    sw.add_argument("--imgsz", type=int, nargs="+", default=[960, 1280])
+    sw.add_argument("--tiles", nargs="+", default=["none", "2x2"])
+    sw.add_argument("--confs", type=float, nargs="+", default=[0.10, 0.15, 0.20, 0.25])
+    sw.add_argument("--overlap", type=float, default=0.2)
+    sw.add_argument("--full-imgsz", type=int, default=960)
+    for p in (ev, sw):
+        p.add_argument("--normal-from", type=int, default=4)
+        p.add_argument("--ramai-from", type=int, default=12)
+        p.add_argument("--pad", type=float, default=0.15, help="Box growth for matching clicks")
     for p in sub.choices.values():
         p.add_argument("--camera", default="kabukicho")
         p.add_argument("--video", type=Path, default=VIDEO)
     args = parser.parse_args()
-    {"sample": sample, "label": label, "evaluate": evaluate}[args.cmd](args)
+    {"sample": sample, "label": label, "evaluate": evaluate, "sweep": sweep}[args.cmd](args)
 
 
 if __name__ == "__main__":
