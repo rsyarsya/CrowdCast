@@ -11,6 +11,11 @@ class CrowdStatus(str, enum.Enum):
     RAMAI = "Ramai"
 
 
+class AlertKind(str, enum.Enum):
+    CROWDED = "crowded"
+    FORECAST_CROWDED = "forecast_crowded"
+
+
 class UserRole(str, enum.Enum):
     OPERATOR = "operator"
     ADMIN = "admin"
