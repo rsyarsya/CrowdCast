@@ -138,6 +138,7 @@ Role dibaca ulang dari database di setiap request, jadi perubahan role atau peno
 | `GET /cameras` | Daftar kamera: `camera_id`, `name`, `location`, `is_active`. Sumber video tidak pernah dikirim. |
 | `GET /cameras/{camera_id}/monitoring/latest` | Pengamatan terbaru, bentuk sama dengan `MonitoringRecord` di frontend. |
 | `GET /cameras/{camera_id}/monitoring?start=&end=&limit=` | Riwayat urut waktu naik. Tanpa `start`, mengembalikan `limit` data terbaru (default 500, maksimal 2000). `start`/`end` wajib memakai offset zona waktu. |
+| `GET /cameras/{camera_id}/monitoring/summary?bucket=&start=&end=` | Riwayat per bucket untuk rentang panjang (halaman History). `bucket` `5m`/`15m`/`1h`/`1d` (default `15m`), rentang default 24 jam terakhir, maksimal 2000 bucket. Tiap titik berisi `bucket_start`, `avg_count`, `min_count`, `max_count`, `records`, `status_counts`, dan `crowd_status` (status terbanyak; seri dimenangkan status yang lebih ramai). Bucket harian dimulai tengah malam WIB; bucket tanpa data tidak dikirim. |
 | `GET /cameras/{camera_id}/predictions/latest` | Prediksi terbaru per horizon (5/15/30 menit), termasuk `target_time` dan `is_simulation`. |
 | `GET /cameras/{camera_id}/live` | Jumlah dan status saat ini dari vision worker (`people_count`, `smoothed_count`, `crowd_status`, `is_stale`). Status live memakai dwell time 30 detik sehingga tidak berkedip. |
 | `GET /cameras/{camera_id}/stream` | Video beranotasi MJPEG (`multipart/x-mixed-replace`). Menerima header `Authorization` atau `?ticket=` (lihat Realtime). |
@@ -190,7 +191,7 @@ Field respons: `id`, `camera_id`, `location`, `kind`, `horizon_minutes` (null un
 
 Tidak ada endpoint hapus permanen: menghapus kamera berarti menghapus seluruh riwayatnya, jadi kamera dan user cukup dinonaktifkan.
 
-`camera_id` adalah kode publik kamera (misalnya `CAM-01`). Waktu dikirim dalam zona `TIMEZONE` (default WIB, `+07:00`). Error memakai kode stabil pada `detail`: 401 `not_authenticated`, `invalid_token`, `invalid_ticket`, atau `invalid_credentials`; 403 `forbidden`; 404 `camera_not_found`, `user_not_found`, `alert_not_found`, `no_monitoring_data`, `no_prediction`, `no_live_data`, atau `no_stream`; 409 `camera_code_exists` atau `email_already_exists`; 422 `cannot_modify_self` atau `invalid_thresholds`.
+`camera_id` adalah kode publik kamera (misalnya `CAM-01`). Waktu dikirim dalam zona `TIMEZONE` (default WIB, `+07:00`). Error memakai kode stabil pada `detail`: 401 `not_authenticated`, `invalid_token`, `invalid_ticket`, atau `invalid_credentials`; 403 `forbidden`; 404 `camera_not_found`, `user_not_found`, `alert_not_found`, `no_monitoring_data`, `no_prediction`, `no_live_data`, atau `no_stream`; 409 `camera_code_exists` atau `email_already_exists`; 422 `cannot_modify_self`, `invalid_thresholds`, atau `too_many_buckets`.
 
 Endpoint `/api/v1/ingest/cameras/{camera_id}/...` (`GET config`, `POST records`, `PUT live`, `PUT frame`) hanya untuk vision worker, tidak memakai login user, dan wajib memakai header `X-Worker-Key` yang sama dengan `WORKER_API_KEY`. Bila `WORKER_API_KEY` kosong, endpoint ingest menolak semua permintaan (HTTP 503).
 
