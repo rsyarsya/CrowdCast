@@ -25,6 +25,7 @@ sys.path.insert(0, str(BACKEND_DIR))
 from app.services.forecast.base import HORIZONS  # noqa: E402
 from app.services.forecast.baselines import MovingAverageForecaster, NaiveForecaster  # noqa: E402
 from app.services.forecast.linear import LinearLagForecaster  # noqa: E402
+from app.services.forecast.metrics import score  # noqa: E402
 from app.services.vision.classifier import StatusThresholds, classify  # noqa: E402
 
 DATASET = BACKEND_DIR / "experiments" / "outputs" / "phase3" / "kabukicho_minutes.csv"
@@ -55,10 +56,11 @@ def evaluate(pred: np.ndarray, y: np.ndarray, th: StatusThresholds) -> dict[str,
     pred = np.clip(np.rint(pred), 0, None)
     row = {}
     for k, h in enumerate(HORIZONS):
-        err = pred[:, k] - y[:, k]
-        row[f"mae_{h}"] = np.abs(err).mean()
-        row[f"rmse_{h}"] = np.sqrt((err**2).mean())
-        row[f"status_acc_{h}"] = np.mean([classify(p, th) == classify(a, th) for p, a in zip(pred[:, k], y[:, k])])
+        p, a = pred[:, k].tolist(), y[:, k].tolist()
+        s = score(p, a, [classify(v, th) for v in p], [classify(v, th) for v in a])
+        row[f"mae_{h}"] = s.mae
+        row[f"rmse_{h}"] = s.rmse
+        row[f"status_acc_{h}"] = s.status_accuracy
     row["mae_mean"] = np.mean([row[f"mae_{h}"] for h in HORIZONS])
     return row
 
