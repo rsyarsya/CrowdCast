@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import TICKET_TYPE, decode_access_token, decode_ticket
 from app.models import User, UserRole
 from app.services.live import LiveHub
+from app.services.login_limiter import LoginLimiter
 
 
 async def get_db(request: Request) -> AsyncIterator[AsyncSession]:
@@ -26,6 +27,13 @@ def get_live_hub(request: Request) -> LiveHub:
 
 
 LiveHubDep = Annotated[LiveHub, Depends(get_live_hub)]
+
+
+def get_login_limiter(request: Request) -> LoginLimiter:
+    return request.app.state.login_limiter
+
+
+LoginLimiterDep = Annotated[LoginLimiter, Depends(get_login_limiter)]
 
 
 # auto_error=False so a missing token returns our own error code.

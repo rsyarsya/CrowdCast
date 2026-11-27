@@ -36,6 +36,12 @@ class Settings(BaseSettings):
     # One operator shift; users log in again afterwards (no refresh token).
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 8
 
+    # Failed logins allowed per client IP and email within the window.
+    LOGIN_MAX_FAILURES: int = 5
+    LOGIN_WINDOW_SECONDS: int = 15 * 60
+
+    LOG_LEVEL: str = "INFO"
+
     # Initial administrator; only required by the seed script.
     FIRST_SUPERUSER_EMAIL: str | None = None
     FIRST_SUPERUSER_PASSWORD: SecretStr | None = None
