@@ -1,9 +1,8 @@
-from collections.abc import AsyncIterator
-from datetime import datetime, timezone
-from typing import Annotated
+from datetime import datetime, timedelta, timezone
+from typing import Annotated, Literal
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
-from fastapi.responses import StreamingResponse
 
 from app.api.deps import DbSession, LiveHubDep, get_current_user
 from app.core.config import get_settings
@@ -12,7 +11,9 @@ from app.schemas.monitoring import (
     CameraOut,
     LiveStateOut,
     MonitoringRecordOut,
+    MonitoringSummaryOut,
     PredictionOut,
+    SummaryPointOut,
 )
 from app.services import monitoring
 
@@ -29,8 +30,6 @@ NO_MONITORING_DATA = "no_monitoring_data"
 NO_PREDICTION = "no_prediction"
 NO_LIVE_DATA = "no_live_data"
 NO_STREAM = "no_stream"
-
-STREAM_BOUNDARY = "crowdcastframe"
 
 NOT_FOUND_DOC = {
     401: {"description": "not_authenticated or invalid_token"},
@@ -102,6 +101,55 @@ async def list_monitoring(
     return [MonitoringRecordOut.from_model(camera, record) for record in records]
 
 
+BUCKETS = {
+    "5m": timedelta(minutes=5),
+    "15m": timedelta(minutes=15),
+    "1h": timedelta(hours=1),
+    "1d": timedelta(days=1),
+}
+MAX_BUCKETS = 2000
+
+
+@router.get(
+    "/{camera_id}/monitoring/summary",
+    response_model=MonitoringSummaryOut,
+    responses=NOT_FOUND_DOC,
+)
+async def summarize_monitoring(
+    db: DbSession,
+    camera: CameraDep,
+    bucket: Annotated[Literal["5m", "15m", "1h", "1d"], Query()] = "15m",
+    start: Annotated[
+        datetime | None, Query(description="ISO 8601 with offset, inclusive; default end - 24 h")
+    ] = None,
+    end: Annotated[
+        datetime | None, Query(description="ISO 8601 with offset, exclusive; default now")
+    ] = None,
+) -> MonitoringSummaryOut:
+    """History grouped per bucket for long ranges. Buckets align to midnight in TIMEZONE."""
+    require_aware(start, "start")
+    require_aware(end, "end")
+    end = end or datetime.now(timezone.utc)
+    start = start or end - timedelta(hours=24)
+    if start >= end:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, detail="start must be before end"
+        )
+    size = BUCKETS[bucket]
+    if (end - start) / size > MAX_BUCKETS:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail="too_many_buckets")
+    origin = datetime(2000, 1, 1, tzinfo=ZoneInfo(get_settings().TIMEZONE))
+    buckets = await monitoring.summarize_records(db, camera, start, end, size, origin)
+    return MonitoringSummaryOut(
+        camera_id=camera.code,
+        location=camera.location,
+        bucket=bucket,
+        start=start,
+        end=end,
+        points=[SummaryPointOut.from_bucket(b) for b in buckets],
+    )
+
+
 @router.get(
     "/{camera_id}/live",
     response_model=LiveStateOut,
@@ -111,40 +159,7 @@ async def get_live(camera: CameraDep, hub: LiveHubDep) -> LiveStateOut:
     state = hub.get_live(camera.code)
     if state is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=NO_LIVE_DATA)
-    age = (datetime.now(timezone.utc) - state.received_at).total_seconds()
-    return LiveStateOut(
-        camera_id=camera.code,
-        timestamp=state.timestamp,
-        people_count=state.raw_count,
-        smoothed_count=state.smoothed_count,
-        crowd_status=state.crowd_status,
-        is_stale=age > get_settings().LIVE_STALE_SECONDS,
-    )
-
-
-@router.get(
-    "/{camera_id}/stream",
-    response_class=StreamingResponse,
-    responses={200: {"content": {"multipart/x-mixed-replace": {}}}, **NOT_FOUND_DOC},
-)
-async def get_stream(camera: CameraDep, hub: LiveHubDep) -> StreamingResponse:
-    """MJPEG stream of the annotated video, usable directly as an <img> source."""
-    if not hub.has_frame(camera.code):
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=NO_STREAM)
-
-    async def parts() -> AsyncIterator[bytes]:
-        async for jpeg in hub.frames(camera.code):
-            yield (
-                b"--" + STREAM_BOUNDARY.encode() + b"\r\n"
-                b"Content-Type: image/jpeg\r\n"
-                b"Content-Length: " + str(len(jpeg)).encode() + b"\r\n\r\n" + jpeg + b"\r\n"
-            )
-
-    return StreamingResponse(
-        parts(),
-        media_type=f"multipart/x-mixed-replace; boundary={STREAM_BOUNDARY}",
-        headers={"Cache-Control": "no-store"},
-    )
+    return LiveStateOut.from_state(camera.code, state)
 
 
 @router.get(
@@ -157,3 +172,4 @@ async def get_latest_predictions(db: DbSession, camera: CameraDep) -> list[Predi
     if not predictions:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=NO_PREDICTION)
     return [PredictionOut.from_model(camera, p) for p in predictions]
+

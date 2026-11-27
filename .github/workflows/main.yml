@@ -84,6 +84,20 @@ jobs:
       - name: Run backend tests
         run: python -m pytest -q
 
+  backend-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build API image
+        run: docker build -t crowdcast-api:ci backend
+
+      - name: Check image starts and imports the app
+        run: docker run --rm --entrypoint python -e DATABASE_URL=postgresql+asyncpg://x:x@localhost/x -e SECRET_KEY=ci crowdcast-api:ci -c "import app.main"
+
   frontend-check:
     runs-on: ubuntu-latest
     timeout-minutes: 10

@@ -1,0 +1,7 @@
+# Caddy obtains and renews the TLS certificate for API_DOMAIN automatically.
+{$API_DOMAIN} {
+	reverse_proxy api:8000 {
+		# Send MJPEG frames and server-sent events to the browser immediately.
+		flush_interval -1
+	}
+}

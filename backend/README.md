@@ -129,7 +129,7 @@ Semua endpoint `/cameras` dan `/users` membutuhkan token. Alurnya:
 
 Di Swagger, klik tombol **Authorize**, isi email pada kolom `username` beserta password, lalu semua request dari Swagger otomatis membawa token. Akun administrator pertama dibuat oleh seed dari `FIRST_SUPERUSER_EMAIL`/`FIRST_SUPERUSER_PASSWORD`; akun lain dibuat admin lewat `POST /api/v1/users`.
 
-Role dibaca ulang dari database di setiap request, jadi perubahan role atau penonaktifan akun langsung berlaku walaupun token lama belum kedaluwarsa. Login yang gagal karena email tidak terdaftar, password salah, atau akun nonaktif selalu menjawab `401 invalid_credentials`, sehingga tidak membocorkan email mana yang terdaftar.
+Role dibaca ulang dari database di setiap request, jadi perubahan role atau penonaktifan akun langsung berlaku walaupun token lama belum kedaluwarsa. Login yang gagal karena email tidak terdaftar, password salah, atau akun nonaktif selalu menjawab `401 invalid_credentials`, sehingga tidak membocorkan email mana yang terdaftar. Setelah 5 kali gagal dalam 15 menit dari IP dan email yang sama, login ditolak dengan `429 too_many_attempts` dan header `Retry-After` (atur lewat `LOGIN_MAX_FAILURES` dan `LOGIN_WINDOW_SECONDS`). Login yang berhasil mereset hitungan.
 
 ### Monitoring (operator dan admin)
 
@@ -138,9 +138,45 @@ Role dibaca ulang dari database di setiap request, jadi perubahan role atau peno
 | `GET /cameras` | Daftar kamera: `camera_id`, `name`, `location`, `is_active`. Sumber video tidak pernah dikirim. |
 | `GET /cameras/{camera_id}/monitoring/latest` | Pengamatan terbaru, bentuk sama dengan `MonitoringRecord` di frontend. |
 | `GET /cameras/{camera_id}/monitoring?start=&end=&limit=` | Riwayat urut waktu naik. Tanpa `start`, mengembalikan `limit` data terbaru (default 500, maksimal 2000). `start`/`end` wajib memakai offset zona waktu. |
+| `GET /cameras/{camera_id}/monitoring/summary?bucket=&start=&end=` | Riwayat per bucket untuk rentang panjang (halaman History). `bucket` `5m`/`15m`/`1h`/`1d` (default `15m`), rentang default 24 jam terakhir, maksimal 2000 bucket. Tiap titik berisi `bucket_start`, `avg_count`, `min_count`, `max_count`, `records`, `status_counts`, dan `crowd_status` (status terbanyak; seri dimenangkan status yang lebih ramai). Bucket harian dimulai tengah malam WIB; bucket tanpa data tidak dikirim. |
 | `GET /cameras/{camera_id}/predictions/latest` | Prediksi terbaru per horizon (5/15/30 menit), termasuk `target_time` dan `is_simulation`. |
 | `GET /cameras/{camera_id}/live` | Jumlah dan status saat ini dari vision worker (`people_count`, `smoothed_count`, `crowd_status`, `is_stale`). Status live memakai dwell time 30 detik sehingga tidak berkedip. |
-| `GET /cameras/{camera_id}/stream` | Video beranotasi MJPEG (`multipart/x-mixed-replace`). Karena butuh token, browser tidak bisa memakainya langsung sebagai `src` tag `<img>`; frontend perlu meneruskannya lewat route server yang menambahkan header `Authorization`. |
+| `GET /cameras/{camera_id}/stream` | Video beranotasi MJPEG (`multipart/x-mixed-replace`). Menerima header `Authorization` atau `?ticket=` (lihat Realtime). |
+
+### Realtime (operator dan admin)
+
+Dashboard tidak perlu polling. Server mengirim event lewat Server-Sent Events (SSE): satu arah dari server ke browser, dibuka dengan `EventSource` bawaan browser.
+
+| Endpoint | Fungsi |
+| --- | --- |
+| `POST /cameras/{camera_id}/ticket` | Tiket untuk `/stream` dan `/events` kamera itu: `{ticket, expires_in}`. |
+| `POST /alerts/ticket` | Tiket untuk `/alerts/events`. |
+| `GET /cameras/{camera_id}/events` | Event `live` (setiap update worker, sekitar 2 kali per detik), `record` (record menit baru), `prediction` (list prediksi 5/15/30), dan `alert` (alert dibuka, diperbarui, ditutup, atau di-ack). Bentuk `data` sama dengan respons REST masing-masing. Status live terakhir dikirim saat koneksi dibuka. |
+| `GET /alerts/events` | Event `alert` dari semua kamera, untuk badge notifikasi. |
+
+`<img>` dan `EventSource` tidak bisa mengirim header `Authorization`, jadi ketiga route `GET` di atas juga menerima `?ticket=`. Tiket berlaku `STREAM_TICKET_SECONDS` (default 60 detik), hanya untuk kamera atau topik yang disebut, dan hanya diperiksa saat koneksi dibuka; koneksi yang sudah berjalan tidak diputus. Saat `EventSource` error, frontend meminta tiket baru lalu membuka koneksi lagi. Tiket tidak bisa dipakai sebagai Bearer token. Saat tidak ada event, server mengirim baris komentar `: ping` tiap `SSE_HEARTBEAT_SECONDS` (default 15) agar proxy tidak memutus koneksi.
+
+Contoh dari terminal:
+
+```powershell
+curl.exe -N "http://localhost:8000/api/v1/cameras/CAM-02/events?ticket=<ticket>"
+```
+
+### Peringatan Ramai (operator dan admin)
+
+Alert dibuat otomatis dari data yang dikirim worker, tanpa langkah manual:
+
+- `crowded`: terbuka saat record per menit berstatus Ramai, tertutup pada record berikutnya yang tidak Ramai.
+- `forecast_crowded`: satu alert per horizon (5/15/30 menit), terbuka saat prediksi horizon itu Ramai dan tertutup saat prediksi berikutnya tidak Ramai.
+
+Hanya ada satu alert terbuka per kamera, jenis, dan horizon. Data yang dikirim ulang atau datang terlambat tidak membuat duplikat dan tidak menutup alert.
+
+| Endpoint | Fungsi |
+| --- | --- |
+| `GET /alerts?camera_id=&active=&start=&end=&limit=` | Daftar alert terbaru lebih dulu. `active=true` hanya yang masih terbuka. `start`/`end` menyaring `started_at` dan wajib memakai offset zona waktu. |
+| `POST /alerts/{alert_id}/ack` | Menandai alert sudah dilihat, menyimpan waktu dan nama user. Ack kedua tidak mengubah apa pun. |
+
+Field respons: `id`, `camera_id`, `location`, `kind`, `horizon_minutes` (null untuk `crowded`), `started_at`, `last_seen_at`, `ended_at`, `target_time` (perkiraan waktu Ramai untuk alert prediksi), `is_active`, `peak_count`, `acknowledged_at`, `acknowledged_by`.
 
 ### Manajemen (admin saja)
 
@@ -155,7 +191,9 @@ Role dibaca ulang dari database di setiap request, jadi perubahan role atau peno
 
 Tidak ada endpoint hapus permanen: menghapus kamera berarti menghapus seluruh riwayatnya, jadi kamera dan user cukup dinonaktifkan.
 
-`camera_id` adalah kode publik kamera (misalnya `CAM-01`). Waktu dikirim dalam zona `TIMEZONE` (default WIB, `+07:00`). Error memakai kode stabil pada `detail`: 401 `not_authenticated`, `invalid_token`, atau `invalid_credentials`; 403 `forbidden`; 404 `camera_not_found`, `user_not_found`, `no_monitoring_data`, `no_prediction`, `no_live_data`, atau `no_stream`; 409 `camera_code_exists` atau `email_already_exists`; 422 `cannot_modify_self` atau `invalid_thresholds`.
+`camera_id` adalah kode publik kamera (misalnya `CAM-01`). Waktu dikirim dalam zona `TIMEZONE` (default WIB, `+07:00`). Error memakai kode stabil pada `detail`: 401 `not_authenticated`, `invalid_token`, `invalid_ticket`, atau `invalid_credentials`; 403 `forbidden`; 404 `camera_not_found`, `user_not_found`, `alert_not_found`, `no_monitoring_data`, `no_prediction`, `no_live_data`, atau `no_stream`; 409 `camera_code_exists` atau `email_already_exists`; 429 `too_many_attempts`; 422 `cannot_modify_self`, `invalid_thresholds`, atau `too_many_buckets`; 500 `internal_error` beserta `request_id`.
+
+Setiap respons membawa header `X-Request-ID` (dipakai ulang bila klien mengirimnya). Log API mencatat satu baris per request: method, path tanpa query string, status, waktu sampai byte pertama, dan request id, sehingga error yang dilaporkan pengguna bisa dicari di log. Level log diatur lewat `LOG_LEVEL`.
 
 Endpoint `/api/v1/ingest/cameras/{camera_id}/...` (`GET config`, `POST records`, `PUT live`, `PUT frame`) hanya untuk vision worker, tidak memakai login user, dan wajib memakai header `X-Worker-Key` yang sama dengan `WORKER_API_KEY`. Bila `WORKER_API_KEY` kosong, endpoint ingest menolak semua permintaan (HTTP 503).
 
@@ -188,7 +226,7 @@ Worker memutar video rekaman seolah CCTV live, menjalankan YOLO (`yolo11n`, imgs
 
    `--start-minute 300` memulai dari pukul 23:00 JST pada rekaman (jam ramai). Video diulang saat habis. Hentikan dengan Ctrl+C; record menit terakhir tetap dikirim.
 
-4. Periksa `http://localhost:8000/api/v1/cameras/CAM-02/live` dan buka `http://localhost:8000/api/v1/cameras/CAM-02/stream` di browser.
+4. Periksa `http://localhost:8000/api/v1/cameras/CAM-02/live` dan buka `http://localhost:8000/api/v1/cameras/CAM-02/stream?ticket=<ticket>` di browser (tiket dari `POST /cameras/CAM-02/ticket` lewat Swagger).
 
 ### Prediksi 5/15/30 Menit
 
@@ -204,6 +242,18 @@ Model dengan MAE validasi terendah disimpan ke `data/models/forecast/<camera>.js
 
 Status live dan frame disimpan di memori proses API, jadi API harus berjalan sebagai **satu proses** (jangan memakai `--workers` > 1) dan status hilang saat API restart. Riwayat tetap aman di database. Worker memakai sekitar 2,5 GB RAM dan GPU; dengan RAM 8 GB, tutup aplikasi berat saat menjalankan Docker, API, worker, dan frontend bersamaan.
 
+## Retensi Data
+
+Prediksi (tiga baris per menit per kamera) dihapus setelah 30 hari; record per menit dan alert disimpan. Jalankan secara berkala, misalnya sehari sekali:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.scripts.prune --days 30
+```
+
+## Deployment
+
+Image produksi dibangun dari [`Dockerfile`](Dockerfile) (tanpa dependency AI) dan menjalankan migrasi sebelum uvicorn. Stack VM (PostgreSQL, API, Caddy untuk HTTPS), panduan Azure Container Apps, dan cara menghubungkan worker laptop ke API cloud ada di [`deploy/README.md`](../deploy/README.md). Di produksi, administrator pertama dibuat dengan `python -m app.scripts.seed --admin-only`, tanpa data demo.
+
 ## Pengujian
 
 Pastikan container database berjalan, lalu dari folder `backend` jalankan:
@@ -217,13 +267,13 @@ Test selalu memakai database `crowdcast_test` (lihat [`tests/conftest.py`](tests
 ## Organisasi Kode
 
 - [`app/main.py`](app/main.py): `create_app()`, CORS, dan lifespan yang membuat serta menutup engine database.
-- [`app/api/`](app/api/): router health, router `/api/v1` (`auth.py`, `cameras.py`, `camera_admin.py`, `users.py`, `ingest.py`), dan dependency bersama (`deps.py`: session database, user dari token, syarat admin).
+- [`app/api/`](app/api/): router health, router `/api/v1` (`auth.py`, `alerts.py`, `cameras.py`, `realtime.py`, `camera_admin.py`, `users.py`, `ingest.py`), dan dependency bersama (`deps.py`: session database, user dari token, syarat admin).
 - [`app/schemas/`](app/schemas/): schema respons API, termasuk konversi waktu ke WIB.
-- [`app/services/`](app/services/): query monitoring (`monitoring.py`), aturan user dan kamera (`users.py`, `cameras.py`), state live dan frame di memori (`live.py`), serta pipeline dan detector vision (`vision/`).
+- [`app/services/`](app/services/): query monitoring (`monitoring.py`), aturan user dan kamera (`users.py`, `cameras.py`), pelacakan alert (`alerts.py`), state live, frame, dan event SSE di memori (`live.py`), serta pipeline dan detector vision (`vision/`).
 - [`app/worker/`](app/worker/): vision worker (`python -m app.worker`): replay video, thread deteksi, overlay MJPEG, dan client ingest.
 - [`app/core/`](app/core/): konfigurasi (`get_settings()`), hashing password, JWT, dan penyensoran kredensial pada URL sumber video.
 - [`app/db/`](app/db/): base ORM dan pembuatan engine/session async.
-- [`app/models/`](app/models/): model ORM User, Camera, CrowdRecord, Prediction, dan enum status.
+- [`app/models/`](app/models/): model ORM User, Camera, CrowdRecord, Prediction, Alert, dan enum.
 - [`alembic/`](alembic/): environment dan file migrasi skema.
 - [`app/scripts/`](app/scripts/): `seed.py` (kamera demo, riwayat simulasi, administrator), `register_camera.py`, dan `backfill_records.py`.
 - [`docker/postgres-init/`](docker/postgres-init/): script inisialisasi container PostgreSQL lokal.

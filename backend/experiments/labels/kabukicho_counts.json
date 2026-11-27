@@ -1,0 +1,257 @@
+{
+ "video": "kabukicho_night_2026-08-25_720p.mp4",
+ "frames": [
+  {
+   "frame": 900,
+   "minute": "2026-08-25T18:00:00+09:00",
+   "minute_status": "Normal",
+   "points": null
+  },
+  {
+   "frame": 11700,
+   "minute": "2026-08-25T18:06:00+09:00",
+   "minute_status": "Ramai",
+   "points": null
+  },
+  {
+   "frame": 74700,
+   "minute": "2026-08-25T18:41:00+09:00",
+   "minute_status": "Normal",
+   "points": null
+  },
+  {
+   "frame": 81900,
+   "minute": "2026-08-25T18:45:00+09:00",
+   "minute_status": "Ramai",
+   "points": null
+  },
+  {
+   "frame": 134100,
+   "minute": "2026-08-25T19:14:00+09:00",
+   "minute_status": "Normal",
+   "points": null
+  },
+  {
+   "frame": 168300,
+   "minute": "2026-08-25T19:33:00+09:00",
+   "minute_status": "Ramai",
+   "points": null
+  },
+  {
+   "frame": 215100,
+   "minute": "2026-08-25T19:59:00+09:00",
+   "minute_status": "Normal",
+   "points": null
+  },
+  {
+   "frame": 236700,
+   "minute": "2026-08-25T20:11:00+09:00",
+   "minute_status": "Ramai",
+   "points": null
+  },
+  {
+   "frame": 297900,
+   "minute": "2026-08-25T20:45:00+09:00",
+   "minute_status": "Ramai",
+   "points": null
+  },
+  {
+   "frame": 308700,
+   "minute": "2026-08-25T20:51:00+09:00",
+   "minute_status": "Normal",
+   "points": null
+  },
+  {
+   "frame": 328500,
+   "minute": "2026-08-25T21:02:00+09:00",
+   "minute_status": "Ramai",
+   "points": null
+  },
+  {
+   "frame": 355500,
+   "minute": "2026-08-25T21:17:00+09:00",
+   "minute_status": "Ramai",
+   "points": null
+  },
+  {
+   "frame": 378900,
+   "minute": "2026-08-25T21:30:00+09:00",
+   "minute_status": "Ramai",
+   "points": null
+  },
+  {
+   "frame": 405900,
+   "minute": "2026-08-25T21:45:00+09:00",
+   "minute_status": "Ramai",
+   "points": null
+  },
+  {
+   "frame": 436500,
+   "minute": "2026-08-25T22:02:00+09:00",
+   "minute_status": "Ramai",
+   "points": null
+  },
+  {
+   "frame": 461700,
+   "minute": "2026-08-25T22:16:00+09:00",
+   "minute_status": "Ramai",
+   "points": null
+  },
+  {
+   "frame": 485100,
+   "minute": "2026-08-25T22:29:00+09:00",
+   "minute_status": "Ramai",
+   "points": null
+  },
+  {
+   "frame": 522900,
+   "minute": "2026-08-25T22:50:00+09:00",
+   "minute_status": "Ramai",
+   "points": null
+  },
+  {
+   "frame": 567900,
+   "minute": "2026-08-25T23:15:00+09:00",
+   "minute_status": "Normal",
+   "points": null
+  },
+  {
+   "frame": 618300,
+   "minute": "2026-08-25T23:43:00+09:00",
+   "minute_status": "Normal",
+   "points": null
+  },
+  {
+   "frame": 666900,
+   "minute": "2026-08-26T00:10:00+09:00",
+   "minute_status": "Normal",
+   "points": null
+  },
+  {
+   "frame": 684900,
+   "minute": "2026-08-26T00:20:00+09:00",
+   "minute_status": "Sepi",
+   "points": null
+  },
+  {
+   "frame": 728100,
+   "minute": "2026-08-26T00:44:00+09:00",
+   "minute_status": "Normal",
+   "points": null
+  },
+  {
+   "frame": 737100,
+   "minute": "2026-08-26T00:49:00+09:00",
+   "minute_status": "Ramai",
+   "points": null
+  },
+  {
+   "frame": 782100,
+   "minute": "2026-08-26T01:14:00+09:00",
+   "minute_status": "Normal",
+   "points": null
+  },
+  {
+   "frame": 825300,
+   "minute": "2026-08-26T01:38:00+09:00",
+   "minute_status": "Sepi",
+   "points": null
+  },
+  {
+   "frame": 855900,
+   "minute": "2026-08-26T01:55:00+09:00",
+   "minute_status": "Normal",
+   "points": null
+  },
+  {
+   "frame": 882900,
+   "minute": "2026-08-26T02:10:00+09:00",
+   "minute_status": "Sepi",
+   "points": null
+  },
+  {
+   "frame": 942300,
+   "minute": "2026-08-26T02:43:00+09:00",
+   "minute_status": "Normal",
+   "points": null
+  },
+  {
+   "frame": 949500,
+   "minute": "2026-08-26T02:47:00+09:00",
+   "minute_status": "Sepi",
+   "points": null
+  },
+  {
+   "frame": 985500,
+   "minute": "2026-08-26T03:07:00+09:00",
+   "minute_status": "Sepi",
+   "points": null
+  },
+  {
+   "frame": 1017900,
+   "minute": "2026-08-26T03:25:00+09:00",
+   "minute_status": "Sepi",
+   "points": null
+  },
+  {
+   "frame": 1057500,
+   "minute": "2026-08-26T03:47:00+09:00",
+   "minute_status": "Sepi",
+   "points": null
+  },
+  {
+   "frame": 1070100,
+   "minute": "2026-08-26T03:54:00+09:00",
+   "minute_status": "Normal",
+   "points": null
+  },
+  {
+   "frame": 1093500,
+   "minute": "2026-08-26T04:07:00+09:00",
+   "minute_status": "Sepi",
+   "points": null
+  },
+  {
+   "frame": 1147500,
+   "minute": "2026-08-26T04:37:00+09:00",
+   "minute_status": "Sepi",
+   "points": null
+  },
+  {
+   "frame": 1185300,
+   "minute": "2026-08-26T04:58:00+09:00",
+   "minute_status": "Sepi",
+   "points": null
+  },
+  {
+   "frame": 1210500,
+   "minute": "2026-08-26T05:12:00+09:00",
+   "minute_status": "Sepi",
+   "points": null
+  },
+  {
+   "frame": 1235700,
+   "minute": "2026-08-26T05:26:00+09:00",
+   "minute_status": "Sepi",
+   "points": null
+  },
+  {
+   "frame": 1250100,
+   "minute": "2026-08-26T05:34:00+09:00",
+   "minute_status": "Normal",
+   "points": null
+  },
+  {
+   "frame": 1260900,
+   "minute": "2026-08-26T05:40:00+09:00",
+   "minute_status": "Sepi",
+   "points": null
+  },
+  {
+   "frame": 1286100,
+   "minute": "2026-08-26T05:54:00+09:00",
+   "minute_status": "Sepi",
+   "points": null
+  }
+ ]
+}

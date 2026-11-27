@@ -36,6 +36,12 @@ class Settings(BaseSettings):
     # One operator shift; users log in again afterwards (no refresh token).
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 8
 
+    # Failed logins allowed per client IP and email within the window.
+    LOGIN_MAX_FAILURES: int = 5
+    LOGIN_WINDOW_SECONDS: int = 15 * 60
+
+    LOG_LEVEL: str = "INFO"
+
     # Initial administrator; only required by the seed script.
     FIRST_SUPERUSER_EMAIL: str | None = None
     FIRST_SUPERUSER_PASSWORD: SecretStr | None = None
@@ -55,6 +61,10 @@ class Settings(BaseSettings):
     WORKER_API_KEY: SecretStr | None = None
     # Live state older than this is reported as stale (worker stopped or lagging).
     LIVE_STALE_SECONDS: int = 15
+    # Lifetime of the ?ticket= used by <img> and EventSource; checked only on connect.
+    STREAM_TICKET_SECONDS: int = 60
+    # Comment line sent on idle event streams so proxies keep the connection open.
+    SSE_HEARTBEAT_SECONDS: float = 15.0
     # Video file used by the seed script for the simulated demo camera.
     VIDEO_SAMPLE_PATH: str = "data/videos/sample.mp4"
 

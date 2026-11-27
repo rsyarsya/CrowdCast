@@ -23,7 +23,7 @@ from app.core.security import create_access_token, get_password_hash  # noqa: E4
 from app.main import create_app  # noqa: E402
 from app.models import User, UserRole  # noqa: E402
 
-TABLES = "users, cameras, crowd_records, predictions"
+TABLES = "users, cameras, crowd_records, predictions, alerts"
 
 
 def alembic_config() -> Config:
