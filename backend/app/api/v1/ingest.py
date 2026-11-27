@@ -11,6 +11,7 @@ from app.api.deps import DbSession, LiveHubDep
 from app.api.v1.cameras import CameraDep
 from app.core.config import get_settings
 from app.models import CrowdRecord, Prediction
+from app.services.alerts import Observation, track_forecasts, track_records
 from app.schemas.ingest import (
     LiveAccepted,
     LiveIn,
@@ -70,6 +71,11 @@ async def post_records(db: DbSession, camera: CameraDep, body: RecordsIn) -> Rec
         },
     )
     await db.execute(statement)
+    await track_records(
+        db,
+        camera,
+        (Observation(r.timestamp, r.people_count, r.crowd_status) for r in body.records),
+    )
     await db.commit()
     return RecordsAccepted(received=len(rows))
 
@@ -112,6 +118,14 @@ async def post_predictions(db: DbSession, camera: CameraDep, body: PredictionsIn
             is_simulation=False,
         )
         for p in body.predictions
+    )
+    await track_forecasts(
+        db,
+        camera,
+        (
+            (p.horizon_minutes, Observation(p.timestamp, p.predicted_count, p.predicted_status))
+            for p in body.predictions
+        ),
     )
     await db.commit()
     return RecordsAccepted(received=len(body.predictions))
