@@ -240,6 +240,10 @@ Model dengan MAE validasi terendah disimpan ke `data/models/forecast/<camera>.js
 
 Status live dan frame disimpan di memori proses API, jadi API harus berjalan sebagai **satu proses** (jangan memakai `--workers` > 1) dan status hilang saat API restart. Riwayat tetap aman di database. Worker memakai sekitar 2,5 GB RAM dan GPU; dengan RAM 8 GB, tutup aplikasi berat saat menjalankan Docker, API, worker, dan frontend bersamaan.
 
+## Deployment
+
+Image produksi dibangun dari [`Dockerfile`](Dockerfile) (tanpa dependency AI) dan menjalankan migrasi sebelum uvicorn. Stack VM (PostgreSQL, API, Caddy untuk HTTPS), panduan Azure Container Apps, dan cara menghubungkan worker laptop ke API cloud ada di [`deploy/README.md`](../deploy/README.md). Di produksi, administrator pertama dibuat dengan `python -m app.scripts.seed --admin-only`, tanpa data demo.
+
 ## Pengujian
 
 Pastikan container database berjalan, lalu dari folder `backend` jalankan:
